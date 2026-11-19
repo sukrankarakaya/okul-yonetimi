@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Test-only helpers for the per-run PostgreSQL test database (spec 0002, ADR 0001). A plain class library:
+       it holds no tests and no assembly fixture, so unit tests of these parts stay in the fast profile (T-13). -->
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Npgsql" />
+  </ItemGroup>
+</Project>

@@ -16,5 +16,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\WebApi\Okul.WebApi\Okul.WebApi.csproj" />
+    <ProjectReference Include="..\Okul.Testing.Database\Okul.Testing.Database.csproj" />
   </ItemGroup>
 </Project>

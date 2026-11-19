@@ -23,7 +23,7 @@
 ## AuthN / AuthZ
 - Personel: e-posta + şifre. Veli: telefon + SMS OTP.
 - Kısa ömürlü JWT access token (15 dk) + dönen refresh token; mobilde SecureStore, web'de httpOnly cookie.
-  *Geçici (spec 0001 → 0002):* iskelette web token yalnızca bellekte tutulur (localStorage yok); httpOnly cookie akışı giriş spec'inde (0002).
+  *Geçici (spec 0001 → gerçek giriş spec'i):* iskelette web token yalnızca bellekte tutulur (localStorage yok); httpOnly cookie akışı gerçek giriş spec'inde.
 - 2FA (TOTP) **Kurucu/Yönetici ve Muhasebe için zorunlu**, Öğretmen için isteğe bağlı.
 - Giriş ve OTP'de rate limit + hesap kilitleme.
 - **Default deny:** her endpoint açık yetki politikası ister; yetkisiz endpoint mimari/entegrasyon testinde yakalanır.
