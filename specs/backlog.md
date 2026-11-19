@@ -29,7 +29,7 @@ step 7). Nothing lands here without that decision; noise is rejected in the tria
   tenant yok), Metro tree-shaking yapmıyor; `packages/api-client/src/client.ts`'deki "tree-shaken" yorumu Metro için
   yanlış. Ayrıca Expo web dev'de bir sayfa yüklemesi 4–7 kez `POST /dev/test-login` gönderiyor (eşzamanlı
   `accessToken === null` kontrolü) — Source: spec 0001, review round 1 (`packages/api-client/openapi.json:8`) +
-  VERIFY F-1/F-2 — Severity: low — Recommendation: gerçek giriş spec'inde (0002) OpenAPI dokümanı DevAuth olmadan
+  VERIFY F-1/F-2 — Severity: low — Recommendation: gerçek giriş spec'inde OpenAPI dokümanı DevAuth olmadan
   üretilsin; `createDevAuthClient` ayrı giriş noktasına (`@okul/api-client/dev`, yalnızca `devLogin.ts` import eder)
   taşınsın ve VERIFY'da `expo export` paketinde `test-login` 0 olsun; `client.ts` yorumu düzeltilsin; login tek promise
   ile sınırlansın — Deferred by: kullanıcı, 2026-11-18, triage; genişletildi: kullanıcı, 2026-11-19, ship kararı
@@ -45,7 +45,7 @@ step 7). Nothing lands here without that decision; noise is rejected in the tria
   middleware sırası (`UseOkulSecurityHeaders` → `UseHttpsRedirection`) yalnızca kodda doğru — Source: spec 0001,
   review round 4, N-1 (`backend/tests/Okul.WebApi.IntegrationTests/SecurityHeadersTests.cs:104`) — Severity: info —
   Recommendation: `UseSetting("https_port", "443")` ile `http://` isteği → `StatusCode == TemporaryRedirect` +
-  `AssertSecurityHeaders`; bir sonraki WebApi/güvenlik değişikliğinde (ör. 0002 veya B-4) ekle —
+  `AssertSecurityHeaders`; bir sonraki WebApi/güvenlik değişikliğinde (ör. gerçek giriş spec'i veya B-4) ekle —
   Deferred by: kullanıcı, 2026-11-19, triage
 - **B-7** — UI ve rol testleri beklenen değerleri üretim kodundan alıyor: web/mobil testleri metinleri bileşenin
   `texts.*` sabitlerinden, `GetMine_ReturnsOwnInstitutionAndCampuses_ForEachRole` rolleri `Roles.All`'dan; mobil test
