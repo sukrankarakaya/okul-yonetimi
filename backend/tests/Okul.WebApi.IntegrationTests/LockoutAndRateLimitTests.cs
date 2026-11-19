@@ -47,6 +47,21 @@ public sealed class LockoutAndRateLimitTests
         (await Login(factory, known.Email, _api.SamplePassword)).StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
+    /// <summary>
+    /// Review round 1 #1 — 20 wrong attempts for one pair AT ONCE still count as 20: the pair is locked afterwards and
+    /// the right password is refused (before the fix, parallel failures overwrote each other's count).
+    /// </summary>
+    [Fact]
+    public async Task ConcurrentFailures_ForOnePair_AllCount_AndLock()
+    {
+        var account = await _api.CreateAccountAsync(InstitutionSampleData.WithCampusesId);
+
+        var answers = await Task.WhenAll(Enumerable.Range(0, 20).Select(_ => Login(_api.Testing, account.Email, Wrong)));
+
+        answers.Select(a => a.StatusCode).ShouldAllBe(s => s == HttpStatusCode.Unauthorized || s == HttpStatusCode.TooManyRequests);
+        await ShouldBeTooMany(await Login(_api.Testing, account.Email, _api.SamplePassword));
+    }
+
     [Fact]
     public async Task ResetsOnSuccess_And_AfterQuietWindow()
     {

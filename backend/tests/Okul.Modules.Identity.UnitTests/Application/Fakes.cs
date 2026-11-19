@@ -106,16 +106,14 @@ internal sealed class FakeThrottles : ILoginThrottleStore
     public Task<LoginThrottle?> FindAsync(string key, CancellationToken cancellationToken) =>
         Task.FromResult(All.GetValueOrDefault(key));
 
-    public Task SaveAsync(LoginThrottle throttle, CancellationToken cancellationToken)
+    public Task<T> UpdateAsync<T>(string key, Func<LoginThrottle, T> change, CancellationToken cancellationToken)
     {
-        All[throttle.Key] = throttle;
-        return Task.CompletedTask;
-    }
+        if (!All.TryGetValue(key, out var throttle))
+        {
+            All[key] = throttle = LoginThrottle.Create(key);
+        }
 
-    public Task ClearAsync(string key, CancellationToken cancellationToken)
-    {
-        All.Remove(key);
-        return Task.CompletedTask;
+        return Task.FromResult(change(throttle));
     }
 }
 

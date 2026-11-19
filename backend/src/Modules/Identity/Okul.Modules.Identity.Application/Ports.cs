@@ -30,13 +30,14 @@ public interface ISessionStore
 /// <summary>Failed-login state by kurum kodu + e-posta key — not tenant-scoped by design (plan 0003, R4).</summary>
 public interface ILoginThrottleStore
 {
+    /// <summary>A cheap, unlocked read — only to refuse early while locked.</summary>
     Task<LoginThrottle?> FindAsync(string key, CancellationToken cancellationToken);
 
-    /// <summary>Insert-or-update in one statement: two concurrent failures for one pair never collide.</summary>
-    Task SaveAsync(LoginThrottle throttle, CancellationToken cancellationToken);
-
-    /// <summary>A successful login removes the pair's state (no row is written for a pair that never failed).</summary>
-    Task ClearAsync(string key, CancellationToken cancellationToken);
+    /// <summary>
+    /// Read-modify-write of one pair's state, serialized per key (spec 0003 review round 1 #1: concurrent failures lost
+    /// counts). The state is created when missing; <paramref name="change"/> runs on the latest state and is persisted.
+    /// </summary>
+    Task<T> UpdateAsync<T>(string key, Func<LoginThrottle, T> change, CancellationToken cancellationToken);
 }
 
 /// <summary>Password hashing (plan 0003, R9). Verify with a null hash still does the work of a real check.</summary>

@@ -114,7 +114,8 @@ public sealed class LoginTests
 
     /// <summary>
     /// Regression (found in build step 4): concurrent logins of one pair raced on the throttle row (23505 → 500).
-    /// Ten right and ten wrong attempts at once: every answer is the normal one.
+    /// Ten right attempts at once for one pair, then four wrong ones at once for another: every answer is the normal one.
+    /// (Concurrent failures counting correctly: <c>LockoutAndRateLimitTests.ConcurrentFailures_ForOnePair_AllCount_AndLock</c>.)
     /// </summary>
     [Fact]
     public async Task ConcurrentLogins_ForOnePair_NeverFail()
@@ -122,9 +123,8 @@ public sealed class LoginTests
         var ct = TestContext.Current.CancellationToken;
         var account = await _api.CreateAccountAsync(InstitutionSampleData.WithCampusesId);
         var right = new LoginRequest(InstitutionSampleData.WithCampusesCode, account.Email, _api.SamplePassword, "mobile");
-        var wrong = right with { Password = "yanlis-sifre-123" };
         var other = await _api.CreateAccountAsync(InstitutionSampleData.WithCampusesId);
-        var wrongOther = wrong with { Email = other.Email };
+        var wrongOther = right with { Email = other.Email, Password = "yanlis-sifre-123" };
 
         var successes = await Task.WhenAll(Enumerable.Range(0, 10).Select(_ =>
             _api.Testing.CreateClient().PostAsJsonAsync(LoginRoute, right, ct)));

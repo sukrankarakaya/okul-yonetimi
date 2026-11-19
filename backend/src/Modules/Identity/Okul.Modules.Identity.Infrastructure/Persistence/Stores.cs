@@ -63,21 +63,27 @@ internal sealed class LoginThrottleStore : ILoginThrottleStore
         _db.LoginThrottles.AsNoTracking().SingleOrDefaultAsync(t => t.Key == key, cancellationToken);
 
     /// <summary>
-    /// One upsert (spec 0003 build: two concurrent logins for one pair raced on INSERT → 23505 → 500). Concurrent
-    /// failures may lose a count to last-write-wins; the lock still comes, at most one attempt later.
+    /// One transaction holding a PostgreSQL advisory lock on the key: concurrent attempts for one pair run one after the
+    /// other, so no failure is lost and a lock that lands during a success is seen (review round 1 #1). The lock is
+    /// released at commit or rollback. The first attempt of a new pair inserts under the same lock — no INSERT race
+    /// (23505) either. The rules stay in <see cref="LoginThrottle"/>.
     /// </summary>
-    public Task SaveAsync(LoginThrottle throttle, CancellationToken cancellationToken) =>
-        _db.Database.ExecuteSqlInterpolatedAsync(
-            $"""
-            INSERT INTO kimlik.login_throttles (key, failure_count, last_failure_at, locked_until)
-            VALUES ({throttle.Key}, {throttle.FailureCount}, {throttle.LastFailureAt}, {throttle.LockedUntil})
-            ON CONFLICT (key) DO UPDATE SET
-                failure_count = EXCLUDED.failure_count,
-                last_failure_at = EXCLUDED.last_failure_at,
-                locked_until = EXCLUDED.locked_until
-            """,
-            cancellationToken);
+    public async Task<T> UpdateAsync<T>(string key, Func<LoginThrottle, T> change, CancellationToken cancellationToken)
+    {
+        await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
+        await _db.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT pg_advisory_xact_lock(hashtextextended({key}, 0))", cancellationToken);
 
-    public Task ClearAsync(string key, CancellationToken cancellationToken) =>
-        _db.LoginThrottles.Where(t => t.Key == key).ExecuteDeleteAsync(cancellationToken);
+        var throttle = await _db.LoginThrottles.SingleOrDefaultAsync(t => t.Key == key, cancellationToken);
+        if (throttle is null)
+        {
+            throttle = LoginThrottle.Create(key);
+            _db.LoginThrottles.Add(throttle);
+        }
+
+        var result = change(throttle);
+        await _db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return result;
+    }
 }

@@ -59,8 +59,7 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, LoginRes
         var email = EmailAddress.Normalize(request.Email);
 
         var key = ThrottleKey(tenantId, request.InstitutionCode, email ?? request.Email);
-        var throttle = await _throttles.FindAsync(key, cancellationToken) ?? LoginThrottle.Create(key);
-        if (throttle.IsLocked(now))
+        if ((await _throttles.FindAsync(key, cancellationToken))?.IsLocked(now) == true)
         {
             return new LoginResult(LoginStatus.Locked);
         }
@@ -78,12 +77,25 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, LoginRes
         var passwordOk = _hasher.Verify(account?.PasswordHash, request.Password ?? string.Empty);
         if (account is null || !passwordOk || !account.CanLogInAsStaff)
         {
-            throttle.RegisterFailure(now);
-            await _throttles.SaveAsync(throttle, cancellationToken);
+            await _throttles.UpdateAsync(key, throttle => throttle.RegisterFailure(now), cancellationToken);
             return new LoginResult(LoginStatus.InvalidCredentials);
         }
 
-        await _throttles.ClearAsync(key, cancellationToken);
+        // A lock that landed while the password was being checked (a parallel failure) still wins over this success.
+        var allowed = await _throttles.UpdateAsync(key, throttle =>
+        {
+            if (throttle.IsLocked(now))
+            {
+                return false;
+            }
+
+            throttle.Reset();
+            return true;
+        }, cancellationToken);
+        if (!allowed)
+        {
+            return new LoginResult(LoginStatus.Locked);
+        }
 
         var sessionId = Guid.CreateVersion7();
         var credential = RefreshCredential.New(account.TenantId, sessionId);
