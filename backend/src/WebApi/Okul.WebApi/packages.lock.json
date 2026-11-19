@@ -129,6 +129,14 @@
       "okul.modules.identity.domain": {
         "type": "Project"
       },
+      "okul.modules.identity.infrastructure": {
+        "type": "Project",
+        "dependencies": {
+          "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.3, )",
+          "Okul.Modules.Identity.Application": "[1.0.0, )",
+          "Okul.Modules.Identity.Domain": "[1.0.0, )"
+        }
+      },
       "okul.modules.institution.application": {
         "type": "Project",
         "dependencies": {

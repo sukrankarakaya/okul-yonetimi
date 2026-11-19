@@ -12,6 +12,7 @@
     <Project Path="src/Modules/Identity/Okul.Modules.Identity.Domain/Okul.Modules.Identity.Domain.csproj" />
     <Project Path="src/Modules/Identity/Okul.Modules.Identity.Contracts/Okul.Modules.Identity.Contracts.csproj" />
     <Project Path="src/Modules/Identity/Okul.Modules.Identity.Application/Okul.Modules.Identity.Application.csproj" />
+    <Project Path="src/Modules/Identity/Okul.Modules.Identity.Infrastructure/Okul.Modules.Identity.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/src/WebApi/">
     <Project Path="src/WebApi/Okul.WebApi/Okul.WebApi.csproj" />

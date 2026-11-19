@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
+    <!-- PasswordHasher only (PBKDF2); the rest of ASP.NET Core Identity is not used (plan 0003, R9). -->
+    <PackageReference Include="Microsoft.Extensions.Identity.Core" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Okul.Modules.Identity.Domain\Okul.Modules.Identity.Domain.csproj" />
+    <ProjectReference Include="..\Okul.Modules.Identity.Application\Okul.Modules.Identity.Application.csproj" />
+  </ItemGroup>
+</Project>
