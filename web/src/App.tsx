@@ -1,8 +1,8 @@
 import { createOkulClient, type OkulClient } from '@okul/api-client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { InstitutionPage } from './features/institution/InstitutionPage';
 import { LoginPage, loginTexts } from './features/login/LoginPage';
 import { ChangePasswordPage, passwordTexts } from './features/password/ChangePasswordPage';
+import { SchoolShell } from './features/school/SchoolShell';
 
 const baseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:5080';
 
@@ -75,8 +75,10 @@ export function App({ client: injected }: { client?: OkulClient } = {}) {
         />
       );
     case 'institution':
+      // Demo modu: giriş sonrası okul paneli (kurum adı başlıkta, sekmeler: panel, öğrenciler, yoklama, …).
       return (
-        <InstitutionPage
+        <SchoolShell
+          client={client}
           loadInstitution={loadInstitution}
           notice={screen.notice}
           onSessionEnded={sessionEnded}

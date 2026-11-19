@@ -6,10 +6,20 @@ hedef Faz 1 (MVP). Faz 2/3 veya "Kapsam dışı" bir iş spec'ten önce işaretl
 
 ## Operating mode
 
-**Mode: lite** — bootstrap sets `lite` or `strict` (`workflows/README.md`); every workflow honors its gates.
+**Mode: lite** (demo dallarında: **demo**, yukarıdaki bölüm) — bootstrap sets `lite` or `strict` (`workflows/README.md`); every workflow honors its gates.
 **Start work** with `/new-feature` in lite (it chains the segments and asks at each gate) or with
 `/analyze` in strict (one segment per role). Segment commands always stop (`workflows/segments.md`).
 **Language: chat=tr · docs=tr** — bootstrap sets `chat=<xx> · docs=<xx>`; protocol fields stay English (`docs/conventions.md`).
+
+## Demo modu (kullanıcı kararı 2026-11-19) — aşağıdaki kurallardan önce gelir
+
+Bu proje gerçek bir ürün değil; amaç **1 günde tıklanabilir bir demo**. `demo/*` dallarında:
+- **Tek demo spec'i** (`specs/active/demo-okul-paneli.md`) tüm demo ekranlarını kapsar; özellik başına spec/plan yok (kural 1–2 gevşer).
+- **Review/VERIFY yok** (kural 3 gevşer); "bitti" = `scripts/check` fast adımları yeşil + ekran elle görüldü (kural 4 gevşer).
+- **Yalnızca web.** Mobil donduruldu; mobil kodu bozulmamalı ama yeni ekran almaz.
+- **Onay kapısı yok** (kural 6 gevşer): ajan önerisini yazıp uygular; kullanıcı sonucu görür.
+- Hassas alan kuralları demo verisinde sadeleşir (örnek veri, gerçek ödeme/SMS yok, bildirimler simüle).
+- **Kalanlar geçerli:** kural 5 (testler zayıflatılmaz), kural 7 (`specs/done/` değişmez), tenant izolasyonu (BR-1).
 
 ## Invariant rules (these survive bootstrap — never delete or weaken them)
 

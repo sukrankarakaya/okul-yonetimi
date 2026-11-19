@@ -14,6 +14,11 @@
     <Project Path="src/Modules/Identity/Okul.Modules.Identity.Application/Okul.Modules.Identity.Application.csproj" />
     <Project Path="src/Modules/Identity/Okul.Modules.Identity.Infrastructure/Okul.Modules.Identity.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/School/">
+    <Project Path="src/Modules/School/Okul.Modules.School.Domain/Okul.Modules.School.Domain.csproj" />
+    <Project Path="src/Modules/School/Okul.Modules.School.Application/Okul.Modules.School.Application.csproj" />
+    <Project Path="src/Modules/School/Okul.Modules.School.Infrastructure/Okul.Modules.School.Infrastructure.csproj" />
+  </Folder>
   <Folder Name="/src/WebApi/">
     <Project Path="src/WebApi/Okul.WebApi/Okul.WebApi.csproj" />
   </Folder>

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Diagnostics;
 using NArchitecture.Core.CrossCuttingConcerns.Exception.Types;
+using Okul.Modules.School.Application;
 
 namespace Okul.WebApi.Errors;
 
@@ -24,6 +25,7 @@ internal sealed class OkulExceptionHandler : IExceptionHandler
         {
             NotFoundException e => (StatusCodes.Status404NotFound, "Bulunamadı", e.Message),
             BusinessException e => (StatusCodes.Status400BadRequest, "İş kuralı ihlali", e.Message),
+            SchoolValidationException e => (StatusCodes.Status400BadRequest, "Doğrulama hatası", e.Message),
             ValidationException e => (StatusCodes.Status400BadRequest, "Doğrulama hatası", e.Message),
             AuthorizationException => (StatusCodes.Status403Forbidden, "Yetkisiz işlem", "Bu işlem için yetkiniz yok."),
             _ => (StatusCodes.Status500InternalServerError, "Sunucu hatası", "Beklenmeyen bir hata oluştu."),

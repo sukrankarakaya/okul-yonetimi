@@ -1,0 +1,3 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Domain: framework-free (docs/architecture.md, Forbidden dependencies 2). Demo modülü (AGENTS.md, Demo modu). -->
+</Project>

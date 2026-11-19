@@ -64,7 +64,15 @@ export interface OkulClient {
   hasSession(): Promise<boolean>;
   getMyInstitution(): Promise<InstitutionResult>;
   changePassword(current: string, next: string, nextAgain: string): Promise<ChangePasswordResult>;
+  /** Demo okul paneli uçları (`/api/v1/school/...`): oturumla, gerekirse bir kez yenileyerek. */
+  request<T>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<RequestResult<T>>;
 }
+
+export type RequestResult<T> =
+  | { kind: 'ok'; data: T }
+  | { kind: 'unauthenticated'; expired: boolean }
+  | { kind: 'invalid'; message: string }
+  | { kind: 'error' };
 
 /** The header the API requires on cookie-authenticated state-changing requests (backend `SessionCookies`). */
 export const csrfHeader = 'X-Okul-Csrf';
@@ -176,7 +184,52 @@ export function createOkulClient(options: OkulClientOptions): OkulClient {
     }
   }
 
+  const fetchImpl = options.fetch ?? ((request: Request) => fetch(request));
+
   return {
+    async request<T>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<RequestResult<T>> {
+      const send = async () => {
+        const headers = new Headers({ Accept: 'application/json' });
+        if (body !== undefined) {
+          headers.set('Content-Type', 'application/json');
+        }
+        if (options.kind === 'web') {
+          headers.set(csrfHeader, '1');
+        } else {
+          const tokens = await options.tokenStore!.read();
+          if (tokens) {
+            headers.set('Authorization', `Bearer ${tokens.accessToken}`);
+          }
+        }
+        const response = await fetchImpl(
+          new Request(`${options.baseUrl}/api/v1${path}`, {
+            method,
+            headers,
+            body: body === undefined ? undefined : JSON.stringify(body),
+            credentials: options.kind === 'web' ? 'include' : 'omit',
+          }),
+        );
+        return { response };
+      };
+
+      const outcome = await withSession(send);
+      if ('network' in outcome) {
+        return { kind: 'error' };
+      }
+      if ('ended' in outcome) {
+        return { kind: 'unauthenticated', expired: outcome.hadSession };
+      }
+      const { response } = outcome.result;
+      if (response.status === 400 || response.status === 404) {
+        const problem = (await response.json().catch(() => ({}))) as { detail?: string };
+        return { kind: 'invalid', message: problem.detail ?? 'İstek geçersiz.' };
+      }
+      if (!response.ok) {
+        return { kind: 'error' };
+      }
+      return { kind: 'ok', data: (await response.json()) as T };
+    },
+
     async login(institutionCode, email, password) {
       try {
         const { data, response } = await api.POST('/api/v1/auth/login', {

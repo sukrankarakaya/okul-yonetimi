@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
+    <PackageReference Include="Anthropic" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Okul.Modules.School.Domain\Okul.Modules.School.Domain.csproj" />
+    <ProjectReference Include="..\Okul.Modules.School.Application\Okul.Modules.School.Application.csproj" />
+  </ItemGroup>
+</Project>

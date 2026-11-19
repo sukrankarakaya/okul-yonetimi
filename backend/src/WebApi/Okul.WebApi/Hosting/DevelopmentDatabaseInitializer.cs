@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Okul.Modules.Identity.Infrastructure.Persistence;
 using Okul.Modules.Institution.Infrastructure.Persistence;
+using Okul.Modules.School.Infrastructure.Persistence;
 
 namespace Okul.WebApi.Hosting;
 
@@ -28,6 +29,10 @@ internal sealed class DevelopmentDatabaseInitializer : IHostedService
         var institutions = scope.ServiceProvider.GetRequiredService<InstitutionDbContext>();
         await InstitutionSampleData.SeedAsync(institutions, cancellationToken);
 
+        // Demo okul verisi (AGENTS.md, Demo modu): sınıflar, öğrenciler, yoklama, taksitler, duyurular.
+        var today = DateOnly.FromDateTime(TimeProvider.System.GetUtcNow().ToOffset(TimeSpan.FromHours(3)).DateTime);
+        await SchoolSampleData.SeedAsync(scope.ServiceProvider.GetRequiredService<SchoolDbContext>(), today, cancellationToken);
+
         var samplePassword = _configuration["Dev:SamplePassword"];
         if (!string.IsNullOrWhiteSpace(samplePassword))
         {
@@ -43,5 +48,6 @@ internal sealed class DevelopmentDatabaseInitializer : IHostedService
         await services.GetRequiredService<InstitutionDbContext>().Database.MigrateAsync(cancellationToken);
         await services.GetRequiredService<IdentityDbContext>().Database.MigrateAsync(cancellationToken);
         await services.GetRequiredService<LoginThrottleDbContext>().Database.MigrateAsync(cancellationToken);
+        await services.GetRequiredService<SchoolDbContext>().Database.MigrateAsync(cancellationToken);
     }
 }

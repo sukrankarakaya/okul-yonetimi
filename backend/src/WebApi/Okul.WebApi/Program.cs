@@ -7,6 +7,7 @@ using Okul.Modules.Identity.Contracts;
 using Okul.Modules.Identity.Infrastructure;
 using Okul.Modules.Institution.Application;
 using Okul.Modules.Institution.Infrastructure;
+using Okul.Modules.School.Infrastructure;
 using Okul.WebApi.Auth;
 using Okul.WebApi.DevAuth;
 using Okul.WebApi.Endpoints;
@@ -87,6 +88,7 @@ services.AddMediator(configuration => configuration.RegisterServicesFromAssembli
 var connectionString = builder.Configuration.GetConnectionString("Okul");
 services.AddInstitutionInfrastructure(connectionString ?? string.Empty);
 services.AddIdentityInfrastructure(connectionString ?? string.Empty);
+services.AddSchoolInfrastructure(connectionString ?? string.Empty);
 
 // Development with a configured database only (user-secrets); build-time OpenAPI generation has none.
 if (builder.Environment.IsDevelopment() && !string.IsNullOrWhiteSpace(connectionString))
@@ -124,6 +126,7 @@ if (app.Environment.IsDevelopment())
 var api = app.MapGroup("/api/v1");
 api.MapInstitutionEndpoints();
 api.MapAuthEndpoints();
+api.MapSchoolEndpoints();
 app.MapDevAuth(app.Environment);
 
 await app.RunAsync();

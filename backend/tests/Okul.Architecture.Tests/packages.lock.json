@@ -103,6 +103,11 @@
         "resolved": "10.0.15",
         "contentHash": "13C007jEmO1JVsoJ+Vvn0AzOaR5bpGsDsaOB9nQt6denQR8hmv1eWmQ0qGarvz+1Zu5b511uF74A90BQigdYHA=="
       },
+      "Microsoft.Extensions.AI.Abstractions": {
+        "type": "Transitive",
+        "resolved": "10.5.1",
+        "contentHash": "nB0l3IlsVbNeUxsE7nZNb9GY8rP1OSeqpj0pseORPejt474HNKEauTWTLdSJPkSvPlRMxowZNMo6nyp7APAiSg=="
+      },
       "Microsoft.Extensions.Caching.Abstractions": {
         "type": "Transitive",
         "resolved": "10.0.15",
@@ -483,6 +488,24 @@
           "Okul.Modules.Institution.Domain": "[1.0.0, )"
         }
       },
+      "okul.modules.school.application": {
+        "type": "Project",
+        "dependencies": {
+          "Okul.Core": "[1.0.0, )"
+        }
+      },
+      "okul.modules.school.domain": {
+        "type": "Project"
+      },
+      "okul.modules.school.infrastructure": {
+        "type": "Project",
+        "dependencies": {
+          "Anthropic": "[13.11.0, )",
+          "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.3, )",
+          "Okul.Modules.School.Application": "[1.0.0, )",
+          "Okul.Modules.School.Domain": "[1.0.0, )"
+        }
+      },
       "okul.webapi": {
         "type": "Project",
         "dependencies": {
@@ -490,7 +513,17 @@
           "Microsoft.AspNetCore.OpenApi": "[10.0.15, )",
           "Okul.Modules.Identity.Infrastructure": "[1.0.0, )",
           "Okul.Modules.Institution.Application": "[1.0.0, )",
-          "Okul.Modules.Institution.Infrastructure": "[1.0.0, )"
+          "Okul.Modules.Institution.Infrastructure": "[1.0.0, )",
+          "Okul.Modules.School.Infrastructure": "[1.0.0, )"
+        }
+      },
+      "Anthropic": {
+        "type": "CentralTransitive",
+        "requested": "[13.11.0, )",
+        "resolved": "13.11.0",
+        "contentHash": "H466KZWidIycmozTYWNDgxsX/Wi9iN93YXRedYtR3SZ6d/pD137DhsD7DgiYf0OIQcs7rhxHBKf5A4PBNSOuPQ==",
+        "dependencies": {
+          "Microsoft.Extensions.AI.Abstractions": "10.5.1"
         }
       },
       "Microsoft.AspNetCore.Authentication.JwtBearer": {
