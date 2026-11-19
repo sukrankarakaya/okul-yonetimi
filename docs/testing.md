@@ -21,7 +21,7 @@
   `--filter-trait "Category=Integration"` (full). `--ignore-exit-code 8` yalnızca "bu test uygulaması sıfır test
   çalıştırdı" kodunu yok sayar (her proje diğer profilin testlerini içermez); toplam sayı çıktıda görünür.
 - Test sayıları (spec 0002 sonrası): backend fast 62 (Kurum birim 14 + WebApi/Core birim 8 + test veritabanı
-  yardımcıları 31 + mimari 9), entegrasyon 23, web 7, mobil 7. WebApi/Core ve test veritabanı birim testleri:
+  yardımcıları 31 + mimari 9), entegrasyon 24, web 7, mobil 7. WebApi/Core ve test veritabanı birim testleri:
   `backend/tests/Okul.WebApi.UnitTests`. **Entegrasyon projesine trait'siz test konmaz** (T-13: assembly fixture'ı
   her test için kurulur, fast profil veritabanı açar).
 - Süreler (spec 0001, A-4 sonrası, bu makine): fast ≈ 80 s (8 adım), full ≈ 125–190 s (temiz kurulum sonrası soğuk ilk koşu ≈ 190 s). Fast'te tam `dotnet format` yok —
