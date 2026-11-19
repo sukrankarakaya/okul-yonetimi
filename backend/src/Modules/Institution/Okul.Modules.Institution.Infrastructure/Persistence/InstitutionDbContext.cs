@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Okul.Core.Persistence;
 using Okul.Core.Tenancy;
+using Okul.Modules.Institution.Domain;
 using CampusEntity = Okul.Modules.Institution.Domain.Campus;
 using InstitutionEntity = Okul.Modules.Institution.Domain.Institution;
 
@@ -34,6 +35,9 @@ public sealed class InstitutionDbContext : TenantDbContext
             institution.Property(i => i.Id).HasColumnName("id").ValueGeneratedNever();
             institution.Property(i => i.Name).HasColumnName("name")
                 .IsRequired().HasMaxLength(InstitutionEntity.NameMaxLength).UseCollation(TurkishCollation);
+            institution.Property(i => i.Code).HasColumnName("code")
+                .IsRequired().HasMaxLength(InstitutionCode.MaxLength);
+            institution.HasIndex(i => i.Code).IsUnique().HasDatabaseName("ux_institutions_code");
 
             institution.HasMany(i => i.Campuses).WithOne().HasForeignKey(c => c.TenantId).OnDelete(DeleteBehavior.Restrict);
             institution.Navigation(i => i.Campuses).UsePropertyAccessMode(PropertyAccessMode.Field);

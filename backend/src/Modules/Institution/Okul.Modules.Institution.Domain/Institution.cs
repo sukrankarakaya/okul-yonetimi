@@ -15,16 +15,24 @@ public sealed class Institution
 
     public string Name { get; private set; } = string.Empty;
 
+    /// <summary>Kurum kodu — how staff name their kurum at login (spec 0003); see <see cref="InstitutionCode"/>.</summary>
+    public string Code { get; private set; } = string.Empty;
+
     public IReadOnlyCollection<Campus> Campuses => _campuses;
 
-    public static Institution Create(Guid id, string name)
+    public static Institution Create(Guid id, string name, string code)
     {
         if (id == Guid.Empty)
         {
             throw new ArgumentException("Kurum kimliği boş olamaz.", nameof(id));
         }
 
-        return new Institution { Id = id, Name = NormalizeName(name, NameMaxLength, nameof(name)) };
+        return new Institution
+        {
+            Id = id,
+            Name = NormalizeName(name, NameMaxLength, nameof(name)),
+            Code = InstitutionCode.Require(code),
+        };
     }
 
     /// <summary>Adds a şube (campus); the campus belongs to this kurum's tenant.</summary>

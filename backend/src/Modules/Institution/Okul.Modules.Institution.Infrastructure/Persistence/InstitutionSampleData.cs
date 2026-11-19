@@ -17,6 +17,10 @@ public static class InstitutionSampleData
     public const string WithCampusesName = "Atatürk Koleji";
     public const string WithoutCampusesName = "Bilge Etüt Merkezi";
 
+    /// <summary>Kurum kodları of the sample kurums (spec 0003). The first holds an <c>I</c> on purpose (T-1).</summary>
+    public const string WithCampusesCode = "ATATURK-IST";
+    public const string WithoutCampusesCode = "BILGE";
+
     public static readonly string[] CampusNamesInsertOrder =
         ["Üsküdar", "Şişli", "Sultanbeyli", "İkitelli", "Ilgaz", "Çankaya", "Cevizli"];
 
@@ -30,14 +34,14 @@ public static class InstitutionSampleData
             return;
         }
 
-        var withCampuses = InstitutionEntity.Create(WithCampusesId, WithCampusesName);
+        var withCampuses = InstitutionEntity.Create(WithCampusesId, WithCampusesName, WithCampusesCode);
         for (var i = 0; i < CampusNamesInsertOrder.Length; i++)
         {
             withCampuses.AddCampus(Guid.Parse($"019a8f00-0000-7000-8000-0000000001{i:D2}"), CampusNamesInsertOrder[i]);
         }
 
         db.Institutions.Add(withCampuses);
-        db.Institutions.Add(InstitutionEntity.Create(WithoutCampusesId, WithoutCampusesName));
+        db.Institutions.Add(InstitutionEntity.Create(WithoutCampusesId, WithoutCampusesName, WithoutCampusesCode));
         await db.SaveChangesAsync(cancellationToken);
     }
 }

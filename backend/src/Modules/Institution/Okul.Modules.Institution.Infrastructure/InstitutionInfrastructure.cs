@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure;
 using Okul.Modules.Institution.Application;
+using Okul.Modules.Institution.Contracts;
 using Okul.Modules.Institution.Infrastructure.Persistence;
 
 namespace Okul.Modules.Institution.Infrastructure;
@@ -13,6 +14,7 @@ public static class InstitutionInfrastructure
     {
         services.AddDbContext<InstitutionDbContext>(options => options.UseNpgsql(connectionString, ConfigureNpgsql));
         services.AddScoped<IInstitutionReadStore, InstitutionReadStore>();
+        services.AddScoped<IInstitutionDirectory, InstitutionDirectory>();
         return services;
     }
 
