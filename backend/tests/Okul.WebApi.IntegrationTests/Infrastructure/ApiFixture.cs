@@ -64,7 +64,16 @@ public sealed class ApiFixture : IAsyncLifetime
         }
         catch
         {
-            await DisposeAsync();
+            // The start failure is the one to show; a clean-up failure on top of it only goes to stderr (review round 2, L-2).
+            try
+            {
+                await DisposeAsync();
+            }
+            catch (Exception cleanup)
+            {
+                await Console.Error.WriteLineAsync($"Test veritabanı temizliği de başarısız: {cleanup.Message}");
+            }
+
             throw;
         }
     }
