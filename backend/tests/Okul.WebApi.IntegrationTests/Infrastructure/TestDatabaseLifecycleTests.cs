@@ -53,22 +53,26 @@ public sealed class TestDatabaseLifecycleTests
         var foreign = $"baska_{suffix}";
         string[] kept = [fresh, unreadable, foreign];
 
-        foreach (var name in kept.Prepend(stale))
-        {
-            await TestDatabase.CreateNamedAsync(Maintenance, name, ct);
-        }
-
+        // Created inside try: a failure half-way still drops what exists — the unreadable and foreign names are
+        // never swept, so on the local server they would stay for good (review round 1, L-3).
         try
         {
+            foreach (var name in kept.Prepend(stale))
+            {
+                await TestDatabase.CreateNamedAsync(Maintenance, name, ct);
+            }
+
             await using var openOnStale = new NpgsqlConnection(
                 new NpgsqlConnectionStringBuilder(Maintenance) { Database = stale, Pooling = false }.ConnectionString);
             await openOnStale.OpenAsync(ct);
 
             var dropped = await TestDatabase.SweepStaleAsync(Maintenance, now, _ => { }, ct);
 
-            dropped.ShouldContain(stale);
-            dropped.ShouldNotContain(fresh);
+            // A parallel run on the same server may sweep `stale` first (L-3): what matters is that it is gone and
+            // that this sweep dropped nothing but stale names.
             (await TestDatabase.ExistsAsync(Maintenance, stale, ct)).ShouldBeFalse();
+            dropped.ShouldAllBe(name => TestDatabaseNames.IsStale(name, now));
+            dropped.ShouldNotContain(fresh);
             foreach (var name in kept)
             {
                 (await TestDatabase.ExistsAsync(Maintenance, name, ct)).ShouldBeTrue(name);
