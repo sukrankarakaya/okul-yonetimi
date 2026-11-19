@@ -37,7 +37,8 @@ step 7). Nothing lands here without that decision; noise is rejected in the tria
   ile sınırlansın — Deferred by: kullanıcı, 2026-11-18, triage; genişletildi: kullanıcı, 2026-11-19, ship kararı
 - **B-4** — TLS sonlandıran proxy arkasında `UseHttpsRedirection`/HSTS `Request.IsHttps` false görür (döngü / HSTS yok);
   `UseForwardedHeaders` yok — Source: spec 0001, review round 2 (`Hosting/SecurityHeaders.cs`) — Severity: info —
-  Recommendation: dağıtım/altyapı spec'inde bilinen proxy'lerle ForwardedHeaders bu adımlardan önce —
+  Recommendation: dağıtım/altyapı spec'inde bilinen proxy'lerle ForwardedHeaders bu adımlardan önce; giriş hız
+  sınırında IPv6 adresleri /64 ile gruplansın (spec 0003 review tur 1 #13) —
   Deferred by: kullanıcı, 2026-11-18, triage
 - **B-5** — Android TalkBack durum metnini iki kez okuyabilir (`announceForAccessibility` + `accessibilityLiveRegion`),
   doğrulanmadı — Source: spec 0001, review round 2 (`mobile/src/features/institution/InstitutionScreen.tsx`) —
@@ -59,3 +60,15 @@ step 7). Nothing lands here without that decision; noise is rejected in the tria
 - **B-8** — AC-10 yalnızca mimari kural 6 ile kasıtlı kırıldı; spec örneği olan kural 1 (başka modülün Domain
   katmanına referans) tek modülle denenemez — Source: spec 0001, VERIFY F-3 — Severity: info — Recommendation:
   ikinci modülü getiren spec'in VERIFY'ında kural 1 kasıtlı kırılsın — Deferred by: kullanıcı, 2026-11-19, ship kararı
+- **B-10** — Şifre değiştirmede "mevcut şifre" denemeleri sınırsız: ele geçirilmiş bir oturumla şifre kilitlenmeden tahmin
+  edilip değiştirilebilir — Source: spec 0003, review round 1 #4 (`Okul.Modules.Identity.Application/ChangePassword.cs`,
+  `/auth/password`) — Severity: medium — Recommendation: mevcut şifre doğrulaması giriş kilidine (kurum + e-posta anahtarı)
+  bağlansın, kilitliyken 429 + "Çok fazla başarısız deneme…" (yeni ekran durumu → spec değişikliği); spec 0004 (2FA) ile —
+  Deferred by: kullanıcı, 2026-11-19, triage
+- **B-11** — Girişte zaman farkı: bilinmeyen kurum kodunda hesap sorgusu çalışmıyor, bilinen kodda bir sorgu daha var
+  (PBKDF2'nin yanında küçük, ölçülmedi) — Source: spec 0003, review round 1 #8 (`Login.cs`) — Severity: low —
+  Recommendation: çok örnekli p50/p95 ölçümü; fark anlamlıysa bilinmeyen kodda da eşdeğer bir sorgu — Deferred by:
+  kullanıcı, 2026-11-19, triage (R-12)
+- **B-12** — `kimlik.login_throttles` ve `kimlik.sessions` için temizlik yok; rastgele e-postalı denemeler ve biten oturumlar
+  kalıcı satır bırakır — Source: spec 0003, review round 1 #12 — Severity: info — Recommendation: süresi geçmiş satırları
+  silen bir arka plan işi (Hangfire geldiğinde) — Deferred by: kullanıcı, 2026-11-19, triage
