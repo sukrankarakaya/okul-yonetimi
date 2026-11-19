@@ -1,0 +1,3 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Public contract of the module: DTOs only. No references. -->
+</Project>
