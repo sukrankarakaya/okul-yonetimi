@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <UserSecretsId>okul-webapi-dev</UserSecretsId>
+    <!-- OpenAPI document for packages/api-client: generated only on request
+         (dotnet build -p:GenerateOpenApi=true) — plan 0001, R5. -->
+    <OpenApiGenerateDocuments>false</OpenApiGenerateDocuments>
+    <OpenApiGenerateDocuments Condition="'$(GenerateOpenApi)' == 'true'">true</OpenApiGenerateDocuments>
+    <OpenApiDocumentsDirectory>$(MSBuildProjectDirectory)/../../../../packages/api-client</OpenApiDocumentsDirectory>
+    <OpenApiGenerateDocumentsOptions>--file-name openapi</OpenApiGenerateDocumentsOptions>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Microsoft.Extensions.ApiDescription.Server" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Modules\Institution\Okul.Modules.Institution.Application\Okul.Modules.Institution.Application.csproj" />
+    <ProjectReference Include="..\..\Modules\Institution\Okul.Modules.Institution.Infrastructure\Okul.Modules.Institution.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>
