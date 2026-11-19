@@ -1,7 +1,8 @@
 # Git
 
-> Bootstrap 2026-11-17. Varsayılan dal: `main`. **Şu an remote/CI yok ve commit'ler insan kararıyla
-> ertelendi** (`specs/backlog.md`, B-1): ajan, kullanıcı açıkça istemeden commit atmaz, push etmez.
+> Bootstrap 2026-11-17. Varsayılan dal: `main`. **Lokal commit'ler 2026-11-19'dan beri** (spec 0001 ship);
+> **remote/CI yok, push yok** (`specs/backlog.md`, B-1). Aşağıdaki dal ve commit kuralları geçerlidir: ajan commit'i
+> yalnızca gate onayıyla atar (onaylı plan → `[plan NNNN/n]`, ship onayı → ship commit'i), push etmez.
 
 ## Branching
 - `feature/<spec-no>-<short-name>` — **no branch without a spec.** Also for CHANGE-lane mini-specs.
