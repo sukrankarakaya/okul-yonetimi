@@ -114,6 +114,47 @@ public sealed class IdentityPersistenceTests
         (await db2.Sessions.SingleAsync(s => s.Id == session.Id, ct)).CurrentRefreshHash.ShouldBe("hA");
     }
 
+    /// <summary>
+    /// Review round 2 L-1 — the theft signal still closes the session when a rotation lands between the handler's read
+    /// and its write: the conditional save fails, the handler falls back to the bulk close. The race is staged
+    /// deterministically: right after the handler reads the session, another scope rotates it for real.
+    /// </summary>
+    [Fact]
+    public async Task ReusedCredential_DuringAConcurrentRotation_StillClosesTheSession()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await MigrateAsync(ct);
+        var now = DateTimeOffset.UtcNow;
+        var session = Session.Start(Guid.CreateVersion7(), TenantA, Guid.CreateVersion7(), ClientKind.Web, now, "h0");
+        await using (var db = Identity(null))
+        {
+            db.Sessions.Add(session);
+            await db.SaveChangesAsync(ct);
+        }
+
+        await using var provider = Services(TenantA);
+        await using var handlerScope = provider.CreateAsyncScope();
+        var racing = new RotateAfterFind(handlerScope.ServiceProvider.GetRequiredService<ISessionStore>(), async () =>
+        {
+            await using var other = provider.CreateAsyncScope();
+            var store = other.ServiceProvider.GetRequiredService<ISessionStore>();
+            (await store.FindAsync(session.Id, ct))!.Refresh("h0", "hA", now).ShouldBe(RefreshOutcome.Rotated);
+            (await store.TrySaveChangesAsync(ct)).ShouldBeTrue();
+        });
+        var handler = new RefreshSessionCommandHandler(
+            new PassThroughScope(), racing, handlerScope.ServiceProvider.GetRequiredService<IStaffAccountStore>(), TimeProvider.System);
+        var stolen = new RefreshCredential(TenantA, session.Id, new string('x', 43)); // neither current nor previous
+
+        var result = await handler.Handle(new RefreshSessionCommand(stolen.ToString()), ct);
+
+        result.Status.ShouldBe(RefreshStatus.Rejected);
+        racing.Rotated.ShouldBeTrue();
+        await using var check = Identity(TenantA);
+        var stored = await check.Sessions.SingleAsync(s => s.Id == session.Id, ct);
+        stored.CurrentRefreshHash.ShouldBe("hA");     // the concurrent rotation landed …
+        stored.ClosedAt.ShouldNotBeNull();            // … and the theft signal closed the session anyway
+    }
+
     [Fact]
     public async Task LoginThrottle_IsStoredByHashedKey_WithoutATenant()
     {
@@ -178,6 +219,49 @@ public sealed class IdentityPersistenceTests
         services.AddSingleton(TimeProvider.System);
         services.AddIdentityInfrastructure(_api.ConnectionString);
         return services.BuildServiceProvider();
+    }
+
+    /// <summary>The filter's tenant comes from <see cref="FixedTenant"/>; the handler's scope is a no-op here.</summary>
+    private sealed class PassThroughScope : ITenantScope
+    {
+        public IDisposable Begin(Guid tenantId) => new Nothing();
+
+        private sealed class Nothing : IDisposable
+        {
+            public void Dispose()
+            {
+            }
+        }
+    }
+
+    /// <summary>Runs <c>afterFind</c> once, right after the first read — the staged concurrent rotation.</summary>
+    private sealed class RotateAfterFind(ISessionStore inner, Func<Task> afterFind) : ISessionStore
+    {
+        public bool Rotated { get; private set; }
+
+        public async Task<Session?> FindAsync(Guid sessionId, CancellationToken cancellationToken)
+        {
+            var session = await inner.FindAsync(sessionId, cancellationToken);
+            if (!Rotated)
+            {
+                Rotated = true;
+                await afterFind();
+            }
+
+            return session;
+        }
+
+        public Task AddAsync(Session session, CancellationToken cancellationToken) => inner.AddAsync(session, cancellationToken);
+
+        public Task CloseOthersAsync(Guid accountId, Guid keepSessionId, DateTimeOffset now, CancellationToken cancellationToken) =>
+            inner.CloseOthersAsync(accountId, keepSessionId, now, cancellationToken);
+
+        public Task<bool> CloseAsync(Guid sessionId, DateTimeOffset now, CancellationToken cancellationToken) =>
+            inner.CloseAsync(sessionId, now, cancellationToken);
+
+        public Task<bool> TrySaveChangesAsync(CancellationToken cancellationToken) => inner.TrySaveChangesAsync(cancellationToken);
+
+        public Task SaveChangesAsync(CancellationToken cancellationToken) => inner.SaveChangesAsync(cancellationToken);
     }
 
     private sealed class NoScope : ITenantScope
