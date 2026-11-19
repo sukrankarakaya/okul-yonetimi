@@ -63,3 +63,8 @@ step 7). Nothing lands here without that decision; noise is rejected in the tria
   Recommendation: test zaten bir hatayla çıkıyorsa temizlik hatası yalnızca stderr'e yazılsın, değilse fırlatılsın
   (`ApiFixture`'daki L-2 deseni) — Deferred by: kullanıcı, 2026-11-19, triage (fix-3 hassas alanda bir review turu
   daha gerektirirdi; kriter etkilenmiyor)
+- **B-10** — Sunucu sürüm/collation denetimi (`ServerRequirements.Problem`) yalnızca saf birim testiyle korunuyor;
+  `VerifyServerAsync` içindeki çağrı devre dışı bırakılınca 86 testin hepsi yeşil kaldı (VERIFY kasıtlı kırma B7) —
+  Source: spec 0002, VERIFY bulgu 1 — Severity: low — Recommendation: `VerifyServerAsync`'in sonucu işlediğini sınayan
+  bir ek nokta + test; davranış bugün gözlemle kanıtlı (collation adı değişince testler koşmadan açık mesajla düşer) —
+  Deferred by: kullanıcı, 2026-11-19, VERIFY triage
