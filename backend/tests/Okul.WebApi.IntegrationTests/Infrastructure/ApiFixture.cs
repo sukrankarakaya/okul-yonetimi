@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Okul.Modules.Institution.Infrastructure.Persistence;
+using Okul.Testing.Database;
 using Okul.WebApi.DevAuth;
 using Shouldly;
 using Testcontainers.PostgreSql;
@@ -15,22 +16,39 @@ using Testcontainers.PostgreSql;
 namespace Okul.WebApi.IntegrationTests.Infrastructure;
 
 /// <summary>
-/// One fresh PostgreSQL 18 container per test run, disposed at the end — no data reaches the next
-/// run (docs/testing.md, Resource hygiene 5). Seeded with the two sample kurums of spec 0001.
+/// One fresh test database per run, dropped at the end — no data reaches the next run (docs/testing.md,
+/// Resource hygiene 5; spec 0002). <c>OKUL_TEST_PG</c> set: on that local PostgreSQL 18 (ADR 0001); unset or
+/// blank: inside a PostgreSQL 18 container that is disposed at the end. Both paths share one flow
+/// (<see cref="TestDatabase"/>). Seeded with the two sample kurums of spec 0001.
 /// </summary>
 public sealed class ApiFixture : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _database = new PostgreSqlBuilder("postgres:18").Build();
+    private PostgreSqlContainer? _container;
+    private TestDatabase? _database;
 
     public byte[] SigningKey { get; } = RandomNumberGenerator.GetBytes(32);
 
     public OkulApiFactory Testing { get; private set; } = null!;
 
-    public string ConnectionString => _database.GetConnectionString();
+    /// <summary>Maintenance connection of this run's server (local or container) — for the lifecycle tests.</summary>
+    public string MaintenanceConnectionString { get; private set; } = null!;
+
+    public string DatabaseName => _database!.Name;
+
+    public string ConnectionString => _database!.ConnectionString;
 
     public async ValueTask InitializeAsync()
     {
-        await _database.StartAsync();
+        var maintenance = TestDatabaseSettings.FromEnvironment();
+        if (maintenance is null)
+        {
+            _container = new PostgreSqlBuilder("postgres:18").Build();
+            await _container.StartAsync();
+            maintenance = _container.GetConnectionString();
+        }
+
+        MaintenanceConnectionString = maintenance;
+        _database = await TestDatabase.CreateAsync(maintenance, TimeProvider.System, Console.Error.WriteLine);
         Testing = CreateFactory(DevAuthEndpoints.TestingEnvironment);
 
         await using var scope = Testing.Services.CreateAsyncScope();
@@ -61,7 +79,15 @@ public sealed class ApiFixture : IAsyncLifetime
             await Testing.DisposeAsync();
         }
 
-        await _database.DisposeAsync();
+        if (_database is not null)
+        {
+            await _database.DisposeAsync();
+        }
+
+        if (_container is not null)
+        {
+            await _container.DisposeAsync();
+        }
     }
 }
 
