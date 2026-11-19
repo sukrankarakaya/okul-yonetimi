@@ -30,7 +30,7 @@
 - Personel girişi: kurum kodu + e-posta + şifre; yanlış girdinin her türü tek cevap alır; şifre PBKDF2 özetiyle saklanır,
   bilinmeyen hesapta da sahte bir doğrulama çalışır. Test girişi yalnızca Development/Testing'de, OpenAPI dışında.
 - **İlk yönetici (üretim):** `dotnet Okul.WebApi.dll create-admin --kurum-kodu <kod> --e-posta <adres>`; şifre standart
-  girdiden okunur, komut satırına yazılmaz ve hiçbir yerde yazdırılmaz (veritabanı önceden migrate edilmiş olmalı).
+  girdiden okunur (terminalde ekrana yansımadan; pipe ile secret manager'dan da verilebilir), komut satırına yazılmaz ve hiçbir yerde yazdırılmaz (veritabanı önceden migrate edilmiş olmalı).
 - 2FA (TOTP) **Kurucu/Yönetici ve Muhasebe için zorunlu**, Öğretmen için isteğe bağlı.
 - Giriş ve OTP'de rate limit + hesap kilitleme. Personel girişi (spec 0003): aynı kurum kodu + e-posta için 5 hata /
   15 dk → 15 dk kilit (var olmayan hesapta da aynı); kaynak başına dakikada 20 deneme. TLS sonlandıran proxy arkasında

@@ -25,7 +25,7 @@ public static class CreateAdminCommand
             return 2;
         }
 
-        var password = await input.ReadLineAsync();
+        var password = await ReadSecretAsync(input);
         if (!PasswordPolicy.IsAcceptable(password))
         {
             await output.WriteLineAsync($"Şifre en az {PasswordPolicy.MinLength} karakter olmalı.");
@@ -59,6 +59,42 @@ public static class CreateAdminCommand
 
         await output.WriteLineAsync("Yönetici hesabı oluşturuldu.");
         return 0;
+    }
+
+    /// <summary>
+    /// From an interactive terminal the password is read key by key without echo (review round 1 #9); piped or
+    /// redirected input (a secret manager, tests) is read as a line.
+    /// </summary>
+    private static async Task<string?> ReadSecretAsync(TextReader input)
+    {
+        if (!ReferenceEquals(input, Console.In) || Console.IsInputRedirected)
+        {
+            return await input.ReadLineAsync();
+        }
+
+        Console.Write("Şifre: ");
+        var secret = new System.Text.StringBuilder();
+        while (true)
+        {
+            var key = Console.ReadKey(intercept: true);
+            if (key.Key == ConsoleKey.Enter)
+            {
+                Console.WriteLine();
+                return secret.ToString();
+            }
+
+            if (key.Key == ConsoleKey.Backspace)
+            {
+                if (secret.Length > 0)
+                {
+                    secret.Length--;
+                }
+            }
+            else if (!char.IsControl(key.KeyChar))
+            {
+                secret.Append(key.KeyChar);
+            }
+        }
     }
 
     private static string? Option(string[] args, string name)
