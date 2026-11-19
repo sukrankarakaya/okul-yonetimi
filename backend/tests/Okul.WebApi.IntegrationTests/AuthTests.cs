@@ -36,7 +36,10 @@ public sealed class AuthTests
         var ct = TestContext.Current.CancellationToken;
         var tenant = InstitutionSampleData.WithCampusesId;
         var noSession = _api.Testing.CreateClient();
-        var expired = ClientWithToken(Token(_api.SigningKey, tenant, notBefore: LongAgo, expires: LongAgo.AddMinutes(15)));
+        // An OPEN session behind the expired token: 401 can then only come from the lifetime check (spec 0003 review
+        // round 1 #6 — a random session id would be refused by the session check even if lifetime validation broke).
+        var openSession = await _api.OpenSessionAsync(tenant);
+        var expired = ClientWithToken(Token(_api.SigningKey, tenant, notBefore: LongAgo, expires: LongAgo.AddMinutes(15), session: openSession));
         var forged = ClientWithToken(Token(RandomNumberGenerator.GetBytes(32), tenant, notBefore: LongAgo, expires: FarFuture));
 
         foreach (var client in new[] { noSession, expired, forged })
