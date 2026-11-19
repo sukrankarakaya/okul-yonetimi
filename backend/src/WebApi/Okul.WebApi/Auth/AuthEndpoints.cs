@@ -24,6 +24,11 @@ public static class AuthEndpoints
     public const string PasswordTooShortMessage = "Yeni şifre en az 10 karakter olmalı.";
     public const string PasswordMismatchMessage = "Yeni şifreler eşleşmiyor.";
 
+    /// <summary>The routes that run BEFORE a session exists; no credential is read on them.</summary>
+    public static bool IsPreSessionPath(PathString path) =>
+        path.StartsWithSegments("/api/v1/auth/login", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWithSegments("/api/v1/auth/refresh", StringComparison.OrdinalIgnoreCase);
+
     public static void MapAuthEndpoints(this IEndpointRouteBuilder api)
     {
         var auth = api.MapGroup("/auth").WithTags("Auth");

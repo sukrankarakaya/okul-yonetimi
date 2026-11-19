@@ -36,6 +36,14 @@ services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
         {
             OnMessageReceived = context =>
             {
+                // Login and refresh never authenticate (plan 0003, A-2(b)): a still-valid cookie of kurum A must not
+                // decide which kurum a login for kurum kodu B searches in (review round 1 #2).
+                if (AuthEndpoints.IsPreSessionPath(context.Request.Path))
+                {
+                    context.NoResult();
+                    return Task.CompletedTask;
+                }
+
                 if (string.IsNullOrEmpty(context.Request.Headers.Authorization)
                     && context.Request.Cookies.TryGetValue(SessionCookies.Access, out var cookie))
                 {

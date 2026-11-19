@@ -135,6 +135,24 @@ public sealed class LoginTests
         failures.Select(r => r.StatusCode).ShouldAllBe(s => s == HttpStatusCode.Unauthorized);
     }
 
+    /// <summary>
+    /// Review round 1 #2 — a browser that still holds kurum A's session cookie logs in with kurum kodu B: the kurum kodu
+    /// decides (the same e-mail exists in both kurums), not the old cookie.
+    /// </summary>
+    [Fact]
+    public async Task Login_WithAnotherKurumsCookieStillSet_UsesTheTypedKurumKodu()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var web = await _api.LoginWebAsync(IdentitySampleData.Administrator);
+        (await web.GetFromJsonAsync<InstitutionDto>(MineRoute, ct))!.Id.ShouldBe(InstitutionSampleData.WithCampusesId);
+
+        var again = await web.PostAsJsonAsync(LoginRoute, new LoginRequest(
+            InstitutionSampleData.WithoutCampusesCode, IdentitySampleData.OtherKurumAdministrator.Email, _api.SamplePassword, "web"), ct);
+
+        again.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await web.GetFromJsonAsync<InstitutionDto>(MineRoute, ct))!.Id.ShouldBe(InstitutionSampleData.WithoutCampusesId);
+    }
+
     /// <summary>AC-4 — the kurum is the login's; nothing the client sends changes it.</summary>
     [Fact]
     public async Task ClientCannotChangeTenant()
