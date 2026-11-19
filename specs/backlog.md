@@ -57,3 +57,9 @@ step 7). Nothing lands here without that decision; noise is rejected in the tria
 - **B-8** — AC-10 yalnızca mimari kural 6 ile kasıtlı kırıldı; spec örneği olan kural 1 (başka modülün Domain
   katmanına referans) tek modülle denenemez — Source: spec 0001, VERIFY F-3 — Severity: info — Recommendation:
   ikinci modülü getiren spec'in VERIFY'ında kural 1 kasıtlı kırılsın — Deferred by: kullanıcı, 2026-11-19, ship kararı
+- **B-9** — Entegrasyon testlerinin `finally` temizliği (`CleanUpAsync`) hata verirse fırlattığı `AggregateException` testin
+  kendi hatasının yerine geçer; asıl neden yalnızca inner exception'da görünür — Source: spec 0002, review round 3, I-1
+  (`backend/tests/Okul.WebApi.IntegrationTests/Infrastructure/TestDatabaseLifecycleTests.cs:115-125`) — Severity: info —
+  Recommendation: test zaten bir hatayla çıkıyorsa temizlik hatası yalnızca stderr'e yazılsın, değilse fırlatılsın
+  (`ApiFixture`'daki L-2 deseni) — Deferred by: kullanıcı, 2026-11-19, triage (fix-3 hassas alanda bir review turu
+  daha gerektirirdi; kriter etkilenmiyor)
