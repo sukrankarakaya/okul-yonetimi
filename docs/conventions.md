@@ -69,6 +69,7 @@ Sabitlendi: spec 0001 (walking skeleton), 2026-11-17. Kaynak: `global.json`, `ba
 - T-10 Log'a telefon, TC no, push token, sağlık notu düşmesi — `[Sensitive]` + otomatik maskeleme — from bootstrap
 - T-11 AI prompt'una fazla veri gitmesi — yalnızca gerekli alanlar; TC no ve sağlık notu AI'a asla gitmez — from bootstrap
 - T-12 `UseExceptionHandler` hata yolunda `Response.Clear()` ile önceden yazılmış başlıkları siler — her yanıtta olması gereken başlıklar `Response.OnStarting` ile yazılır, testte bir hata yanıtı (404) da ölçülür — from spec 0001 review round 2
+- T-13 xunit v3 `AssemblyFixture` o assembly'de koşan **her** test için kurulur, trait'e bakmaz — entegrasyon projesine trait'siz test konmaz (fast profil konteyner/veritabanı açar); saf yardımcılar ayrı kütüphanede (`Okul.Testing.Database`), testleri birim projesinde — from spec 0002 build step 1 (A-1)
 
 ## Enforced by tooling
 Spec 0001'den beri `scripts/check.conf`'ta:
