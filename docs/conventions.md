@@ -19,7 +19,7 @@ Sabitlendi: spec 0001 (walking skeleton), 2026-11-17. Kaynak: `global.json`, `ba
 - Backend: .NET SDK 10.0.404 (`global.json`, `rollForward: latestFeature`), ASP.NET Core / EF Core 10.0.15,
   Npgsql EF 10.0.3, nArchitecture 2.0.0 (`NArchitecture.Core.Mediator`, `…CrossCuttingConcerns.Exception`;
   MediatR kullanılmaz — A-1). Testler Microsoft.Testing.Platform ile (`global.json` → `test.runner`).
-- Test: xunit.v3 4.0.3, Shouldly 4.3.0, NSubstitute 6.2.0, NetArchTest 1.3.2, Testcontainers 4.17.0 (`postgres:18`),
+- Test: xunit.v3 4.0.3, Shouldly 4.3.0, NSubstitute 6.2.0, NetArchTest 1.3.2, Npgsql 10.0.3 (test veritabanı yardımcıları, `Okul.Testing.Database`), Testcontainers 4.17.0 (`postgres:18`, yalnızca `OKUL_TEST_PG` tanımsızken — ADR 0001),
   Microsoft.Extensions.TimeProvider.Testing 10.0.0 (`FakeTimeProvider`)
 - Kimlik: Microsoft.Extensions.Identity.Core 10.0.15 (yalnızca `PasswordHasher`, PBKDF2 — ASP.NET Core Identity'nin geri
   kalanı kullanılmaz); mobil oturum: expo-secure-store ~58.0.3
@@ -75,6 +75,10 @@ Sabitlendi: spec 0001 (walking skeleton), 2026-11-17. Kaynak: `global.json`, `ba
 - T-10 Log'a telefon, TC no, push token, sağlık notu düşmesi — `[Sensitive]` + otomatik maskeleme — from bootstrap
 - T-11 AI prompt'una fazla veri gitmesi — yalnızca gerekli alanlar; TC no ve sağlık notu AI'a asla gitmez — from bootstrap
 - T-12 `UseExceptionHandler` hata yolunda `Response.Clear()` ile önceden yazılmış başlıkları siler — her yanıtta olması gereken başlıklar `Response.OnStarting` ile yazılır, testte bir hata yanıtı (404) da ölçülür — from spec 0001 review round 2
+- T-13 xunit v3 `AssemblyFixture` o assembly'de koşan **her** test için kurulur, trait'e bakmaz — entegrasyon projesine trait'siz test konmaz (fast profil konteyner/veritabanı açar); saf yardımcılar ayrı kütüphanede (`Okul.Testing.Database`), testleri birim projesinde — from spec 0002 build step 1 (A-1)
+- T-14 `DROP DATABASE … WITH (FORCE)` yalnızca rolün sonlandırabileceği oturumları kapatır; başka (süper) rolün oturumu varsa ya da veritabanı şablonsa hata verir — toplu temizlikte (sweep) DROP hatası yakalanıp uyarıya çevrilir, koşu düşmez — from spec 0002 review round 1 (L-1)
+- T-15 `Directory.Packages.props`'a transitif bir paketin `PackageVersion`'ı eklenince onu kullanan her projenin `packages.lock.json`'u `CentralTransitive` olur (ürün projeleri dahil, sürüm aynı kalsa da) — plan dosya listesine bu lock dosyaları da yazılır — from spec 0002 review round 1 (L-4)
+- T-16 xunit v3 `TestContext.Current.CancellationToken` iptalde `finally` temizliğini de iptal eder — test temizliği `CancellationToken.None` ile yapılır, her adım ayrı `try` içinde (biri düşerse diğerleri yine koşar) — from spec 0002 review round 2 (L-1)
 
 ## Enforced by tooling
 Spec 0001'den beri `scripts/check.conf`'ta:

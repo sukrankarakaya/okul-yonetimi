@@ -12,7 +12,7 @@
 |---|---|---|---|
 | Backend birim (domain, iş kuralları, handler) | xUnit v3 + Shouldly + NSubstitute | `backend/tests/*.UnitTests` | `[fast]` |
 | Mimari (yasak bağımlılıklar, tenant filtresi) | NetArchTest | `backend/tests/Okul.Architecture.Tests` | `[fast]` |
-| Backend entegrasyon (API + gerçek PostgreSQL 18) | `WebApplicationFactory` + Testcontainers | `backend/tests/*.IntegrationTests`, `[Trait("Category","Integration")]` | full (Docker gerekir) |
+| Backend entegrasyon (API + gerçek PostgreSQL 18) | `WebApplicationFactory` + yerel PostgreSQL 18 (`OKUL_TEST_PG`) ya da Testcontainers | `backend/tests/*.IntegrationTests`, `[Trait("Category","Integration")]` | full (yerel PG ya da Docker — aşağıda "Test veritabanı") |
 | Web bileşen | Vitest + React Testing Library | `web/src/**/*.test.tsx` | `[fast]` |
 | Mobil bileşen | Jest (jest-expo) + React Native Testing Library | `mobile/src/**/*.test.tsx` | `[fast]` |
 | e2e | **yok** | — | — |
@@ -20,8 +20,10 @@
 - Fast/full ayrımı **seçiciyle** (Microsoft.Testing.Platform): `--filter-not-trait "Category=Integration"` (fast) ve
   `--filter-trait "Category=Integration"` (full). `--ignore-exit-code 8` yalnızca "bu test uygulaması sıfır test
   çalıştırdı" kodunu yok sayar (her proje diğer profilin testlerini içermez); toplam sayı çıktıda görünür.
-- Test sayıları (spec 0003 BUILD sonrası): backend fast 100 (Kurum birim 32 + Kimlik birim 46 + WebApi/Core birim 8
-  + mimari 14), entegrasyon 58, web 27, mobil 24. WebApi/Core birim testleri: `backend/tests/Okul.WebApi.UnitTests`.
+- Test sayıları (spec 0003 BUILD + spec 0002 merge sonrası): backend fast 132 (Kurum birim 32 + Kimlik birim 44 +
+  WebApi/Core birim 8 + test veritabanı yardımcıları 31 + mimari 17), entegrasyon 68, web 27, mobil 24. WebApi/Core ve
+  test veritabanı birim testleri: `backend/tests/Okul.WebApi.UnitTests`. **Entegrasyon projesine trait'siz test konmaz**
+  (T-13: assembly fixture'ı her test için kurulur, fast profil veritabanı açar).
 - Kimlik entegrasyon testleri gerçek girişle oturum açar (`ApiFixture.LoginMobileAsync` / `LoginWebAsync`); örnek hesap
   parolası her koşuda rastgele. Hesabı kilitleyen veya değiştiren testler kendi hesabını açar (`CreateAccountAsync`),
   örnek hesaplara dokunmaz. Saat gerektiren testler (`LockoutAndRateLimitTests`, `SessionLifetimeTests`) kendi
@@ -37,8 +39,36 @@
   speech-to-text, push ve depolama stub'lanır (gerçek dış çağrı yok). Web/mobil bileşen testlerinde
   animasyon kapalı (reduced motion + uygulamanın test anahtarı).
 - **Kaynak temizliği:** `dotnet` adımlarında `-nodeReuse:false`, `DOTNET_CLI_USE_MSBUILD_SERVER=0`,
-  adım sonunda `dotnet build-server shutdown` (exit code korunarak); Testcontainers her çalıştırmada
-  yeni veritabanı açar, sonunda kapatır; Vitest `--run`, Jest `--watchAll=false`.
+  adım sonunda `dotnet build-server shutdown` (exit code korunarak); her entegrasyon koşusu kendi
+  `okul_test_<UTC zaman>_<ek>` veritabanını açar, sonunda siler; açılışta 60 dk'dan eski `okul_test_*` veritabanları
+  süpürülür (spec 0002); konteyner yolunda konteyner de kapanır; Vitest `--run`, Jest `--watchAll=false`.
+
+## Test veritabanı (ADR 0001, spec 0002)
+- **`OKUL_TEST_PG` tanımlı (boş değil):** entegrasyon testleri bu makinedeki PostgreSQL 18'de koşar, Docker gerekmez.
+  Değer bir bakım veritabanının **parolasız** libpq URI'si: `postgresql://okul_test@localhost:5432/postgres`.
+  Parola pgpass'ta durur. Sunucuya ulaşılamazsa, ana sürüm 18 değilse ya da `tr-TR-x-icu` yoksa testler hiçbir test
+  koşmadan, nedeni adlandıran bir mesajla kırmızı olur; konteynere düşülmez.
+- **Tanımsız ya da boş:** her koşuda geçici bir `postgres:18` konteyneri (Testcontainers) — ileride CI yolu.
+- Yerel sürüm elle güncellenir (ana sürüm 18 zorunlu, yama farkı kabul); konteyner görüntüsüyle ayrışabilir.
+- **Kurulum (Windows, bir kez — komutlar PowerShell'de):** parola hiçbir komut satırına yazılmaz.
+  1. EDB yükleyicisiyle PostgreSQL 18: bileşenler *PostgreSQL Server* + *Command Line Tools*, port 5432; `postgres`
+     süper kullanıcı parolasını not et. EDB Windows derlemeleri ICU içerir.
+  2. Kullanıcı PATH'ine `C:\Program Files\PostgreSQL\18\bin` ekle (Ayarlar → *Ortam değişkenleri*); `pg_isready`,
+     `psql` ve `createuser` buradan gelir. Sonra **yeni bir PowerShell aç** (açık pencere yeni PATH'i görmez).
+  3. Test rolü — süper kullanıcı **değil**, yalnızca veritabanı oluşturabilir; parolalar sorulur:
+     `createuser -U postgres --login --createdb --pwprompt okul_test` (önce yeni rolün parolası iki kez, sonra
+     `postgres` parolası).
+  4. pgpass dosyası (kullanıcı profilinde, yalnızca sana açık):
+     `New-Item -ItemType Directory -Force "$env:APPDATA\postgresql" | Out-Null` ve
+     `notepad "$env:APPDATA\postgresql\pgpass.conf"` ile tek satır yaz: `localhost:5432:*:okul_test:<parola>`
+  5. `setx OKUL_TEST_PG "postgresql://okul_test@localhost:5432/postgres"` — sonra terminali ve VS Code'u yeniden aç.
+  6. Doğrula: `psql $env:OKUL_TEST_PG -c "SELECT collname FROM pg_collation WHERE collname = 'tr-TR-x-icu'"` parola
+     sormadan (pgpass okundu) bir satır döner — Git Bash'te `psql "$OKUL_TEST_PG" …`. Sonra Git Bash'te
+     `./scripts/doctor` → `profile full: runnable` (Docker kapalıyken de).
+- Aynı sunucuda iki entegrasyon koşusu aynı anda koşabilir (her biri kendi veritabanında); biri diğerinin 60 dk'dan
+  eski veritabanlarını süpürebilir, bu beklenen davranıştır.
+- Sweep "silinemedi, atlandı" uyarısı verirse (ör. `42809`: kesilmiş bir test koşusundan kalan şablon veritabanı),
+  elle temizle: `psql $env:OKUL_TEST_PG -c 'ALTER DATABASE "<ad>" IS_TEMPLATE false' -c 'DROP DATABASE "<ad>"'`.
 
 ## What must be tested
 1. Her iş kuralı BR-1…BR-11 (`docs/domain.md`) en az bir testle.

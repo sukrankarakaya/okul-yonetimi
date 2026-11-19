@@ -21,6 +21,7 @@
     <Project Path="tests/Okul.Modules.Institution.UnitTests/Okul.Modules.Institution.UnitTests.csproj" />
     <Project Path="tests/Okul.Modules.Identity.UnitTests/Okul.Modules.Identity.UnitTests.csproj" />
     <Project Path="tests/Okul.Architecture.Tests/Okul.Architecture.Tests.csproj" />
+    <Project Path="tests/Okul.Testing.Database/Okul.Testing.Database.csproj" />
     <Project Path="tests/Okul.WebApi.IntegrationTests/Okul.WebApi.IntegrationTests.csproj" />
     <Project Path="tests/Okul.WebApi.UnitTests/Okul.WebApi.UnitTests.csproj" />
   </Folder>
