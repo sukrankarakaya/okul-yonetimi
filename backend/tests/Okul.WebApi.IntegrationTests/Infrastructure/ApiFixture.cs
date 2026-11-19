@@ -37,24 +37,36 @@ public sealed class ApiFixture : IAsyncLifetime
 
     public string ConnectionString => _database!.ConnectionString;
 
+    /// <summary>
+    /// A failure after the database exists (migration, seed) cleans up here before rethrowing, so the run's
+    /// database never outlives a failed start — whatever the test framework does next (review round 1, L-2; CB-2).
+    /// </summary>
     public async ValueTask InitializeAsync()
     {
-        var maintenance = TestDatabaseSettings.FromEnvironment();
-        if (maintenance is null)
+        try
         {
-            _container = new PostgreSqlBuilder("postgres:18").Build();
-            await _container.StartAsync();
-            maintenance = _container.GetConnectionString();
+            var maintenance = TestDatabaseSettings.FromEnvironment();
+            if (maintenance is null)
+            {
+                _container = new PostgreSqlBuilder("postgres:18").Build();
+                await _container.StartAsync();
+                maintenance = _container.GetConnectionString();
+            }
+
+            MaintenanceConnectionString = maintenance;
+            _database = await TestDatabase.CreateAsync(maintenance, TimeProvider.System, Console.Error.WriteLine);
+            Testing = CreateFactory(DevAuthEndpoints.TestingEnvironment);
+
+            await using var scope = Testing.Services.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<InstitutionDbContext>();
+            await db.Database.MigrateAsync();
+            await InstitutionSampleData.SeedAsync(db);
         }
-
-        MaintenanceConnectionString = maintenance;
-        _database = await TestDatabase.CreateAsync(maintenance, TimeProvider.System, Console.Error.WriteLine);
-        Testing = CreateFactory(DevAuthEndpoints.TestingEnvironment);
-
-        await using var scope = Testing.Services.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<InstitutionDbContext>();
-        await db.Database.MigrateAsync();
-        await InstitutionSampleData.SeedAsync(db);
+        catch
+        {
+            await DisposeAsync();
+            throw;
+        }
     }
 
     public OkulApiFactory CreateFactory(string environment) =>
@@ -72,21 +84,39 @@ public sealed class ApiFixture : IAsyncLifetime
         return client;
     }
 
+    /// <summary>Each resource is released even when an earlier one fails; safe to call twice (L-2).</summary>
     public async ValueTask DisposeAsync()
     {
-        if (Testing is not null)
-        {
-            await Testing.DisposeAsync();
-        }
+        var testing = Testing;
+        var database = _database;
+        var container = _container;
+        Testing = null!;
+        _database = null;
+        _container = null;
 
-        if (_database is not null)
+        try
         {
-            await _database.DisposeAsync();
+            if (testing is not null)
+            {
+                await testing.DisposeAsync();
+            }
         }
-
-        if (_container is not null)
+        finally
         {
-            await _container.DisposeAsync();
+            try
+            {
+                if (database is not null)
+                {
+                    await database.DisposeAsync();
+                }
+            }
+            finally
+            {
+                if (container is not null)
+                {
+                    await container.DisposeAsync();
+                }
+            }
         }
     }
 }
