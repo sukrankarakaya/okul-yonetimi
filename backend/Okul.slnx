@@ -1,0 +1,20 @@
+<Solution>
+  <Folder Name="/src/Core/">
+    <Project Path="src/Core/Okul.Core/Okul.Core.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Institution/">
+    <Project Path="src/Modules/Institution/Okul.Modules.Institution.Domain/Okul.Modules.Institution.Domain.csproj" />
+    <Project Path="src/Modules/Institution/Okul.Modules.Institution.Contracts/Okul.Modules.Institution.Contracts.csproj" />
+    <Project Path="src/Modules/Institution/Okul.Modules.Institution.Application/Okul.Modules.Institution.Application.csproj" />
+    <Project Path="src/Modules/Institution/Okul.Modules.Institution.Infrastructure/Okul.Modules.Institution.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/WebApi/">
+    <Project Path="src/WebApi/Okul.WebApi/Okul.WebApi.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Okul.Modules.Institution.UnitTests/Okul.Modules.Institution.UnitTests.csproj" />
+    <Project Path="tests/Okul.Architecture.Tests/Okul.Architecture.Tests.csproj" />
+    <Project Path="tests/Okul.WebApi.IntegrationTests/Okul.WebApi.IntegrationTests.csproj" />
+    <Project Path="tests/Okul.WebApi.UnitTests/Okul.WebApi.UnitTests.csproj" />
+  </Folder>
+</Solution>
