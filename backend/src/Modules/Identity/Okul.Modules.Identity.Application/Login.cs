@@ -116,7 +116,10 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, LoginRes
     /// </summary>
     internal static string ThrottleKey(Guid? tenantId, string? institutionCode, string? email)
     {
-        var kurum = tenantId?.ToString("N") ?? "kod:" + (institutionCode?.Trim().ToUpperInvariant() ?? string.Empty);
+        // One normalization for every code, known or not (review round 1 #3): otherwise "XYZİ" and "XYZI" get two keys for
+        // an unknown code but one for a known code, and the difference tells whether a kurum kodu exists.
+        var kurum = tenantId?.ToString("N")
+            ?? "kod:" + (InstitutionCodeFormat.Normalize(institutionCode) ?? institutionCode?.Trim().ToUpperInvariant() ?? string.Empty);
         var who = email?.Trim().ToLowerInvariant() ?? string.Empty;
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(kurum + "\n" + who)));
     }

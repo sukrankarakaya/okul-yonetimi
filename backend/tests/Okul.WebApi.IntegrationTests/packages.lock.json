@@ -774,7 +774,10 @@
         "type": "Project"
       },
       "okul.modules.institution.domain": {
-        "type": "Project"
+        "type": "Project",
+        "dependencies": {
+          "Okul.Modules.Institution.Contracts": "[1.0.0, )"
+        }
       },
       "okul.modules.institution.infrastructure": {
         "type": "Project",

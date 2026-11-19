@@ -1,3 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- Domain: framework-free (docs/architecture.md, Forbidden dependencies 2). No references. -->
+  <!-- Domain: framework-free (docs/architecture.md, Forbidden dependencies 2). Only the module's own contract (pure
+       helpers such as InstitutionCodeFormat — spec 0003 review round 1 #3). -->
+  <ItemGroup>
+    <ProjectReference Include="..\Okul.Modules.Institution.Contracts\Okul.Modules.Institution.Contracts.csproj" />
+  </ItemGroup>
 </Project>

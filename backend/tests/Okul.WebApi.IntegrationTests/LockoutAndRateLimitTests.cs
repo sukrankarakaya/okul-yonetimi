@@ -62,6 +62,20 @@ public sealed class LockoutAndRateLimitTests
         await ShouldBeTooMany(await Login(_api.Testing, account.Email, _api.SamplePassword));
     }
 
+    /// <summary>Review round 1 #3 — an unknown kurum kodu locks under every spelling (İ / ı / i / I), like a known one.</summary>
+    [Fact]
+    public async Task UnknownCode_LocksUnderEverySpelling()
+    {
+        var email = $"kod-{Guid.NewGuid():N}@okul.test";
+        var code = "Q" + Guid.NewGuid().ToString("N")[..6].ToUpperInvariant() + "I";
+        for (var i = 0; i < 5; i++)
+        {
+            (await LoginWithCode(code, email)).StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        }
+
+        await ShouldBeTooMany(await LoginWithCode(code[..^1].ToLowerInvariant() + "İ", email));
+    }
+
     [Fact]
     public async Task ResetsOnSuccess_And_AfterQuietWindow()
     {
@@ -107,6 +121,10 @@ public sealed class LockoutAndRateLimitTests
         factory.CreateClient().PostAsJsonAsync(
             LoginRoute, new LoginRequest(InstitutionSampleData.WithCampusesCode, email, password, "mobile"),
             TestContext.Current.CancellationToken);
+
+    private Task<HttpResponseMessage> LoginWithCode(string code, string email) =>
+        _api.Testing.CreateClient().PostAsJsonAsync(
+            LoginRoute, new LoginRequest(code, email, Wrong, "mobile"), TestContext.Current.CancellationToken);
 
     private static async Task ShouldBeTooMany(HttpResponseMessage response)
     {

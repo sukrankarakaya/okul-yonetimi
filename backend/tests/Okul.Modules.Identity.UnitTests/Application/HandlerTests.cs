@@ -79,6 +79,22 @@ public sealed class HandlerTests
         (await Login("OKUL-A", "ogretmen@okul.test", Password)).Status.ShouldBe(LoginStatus.Succeeded);
     }
 
+    /// <summary>
+    /// Review round 1 #3 — an UNKNOWN kurum kodu locks under every spelling (Turkish İ included), exactly like a known
+    /// one; otherwise the lock would tell whether a code exists.
+    /// </summary>
+    [Fact]
+    public async Task Login_UnknownCode_LocksUnderEverySpelling()
+    {
+        for (var i = 0; i < 5; i++)
+        {
+            (await Login("XYZI", "biri@okul.test", "yanlis-sifre-1")).Status.ShouldBe(LoginStatus.InvalidCredentials);
+        }
+
+        (await Login("xyzİ", "biri@okul.test", "yanlis-sifre-1")).Status.ShouldBe(LoginStatus.Locked);
+        (await Login(" xyzı ", "BIRI@okul.test", "yanlis-sifre-1")).Status.ShouldBe(LoginStatus.Locked);
+    }
+
     [Fact]
     public async Task Refresh_Rotates_ThenTheOldOneOutsideGrace_ClosesTheSession()
     {

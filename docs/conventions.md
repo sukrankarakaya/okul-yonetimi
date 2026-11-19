@@ -63,7 +63,7 @@ Sabitlendi: spec 0001 (walking skeleton), 2026-11-17. Kaynak: `global.json`, `ba
 - Kişisel veri alanları `[Sensitive]` ile işaretlenir; log'da otomatik maskelenir.
 
 ## Known traps
-- T-1 Türkçe I/ı/İ/i: kültüre bağlı `ToLower/ToUpper/Compare` — Invariant/Ordinal kullan; UI `tr-TR`; DB aramada ICU collation `tr-TR-x-icu` — from bootstrap
+- T-1 Türkçe I/ı/İ/i: kültüre bağlı `ToLower/ToUpper/Compare` — Invariant/Ordinal kullan; UI `tr-TR`; DB aramada ICU collation `tr-TR-x-icu` — from bootstrap; `ToUpperInvariant('İ')` `İ` kalır — bir değeri karşılaştırmak için normalize eden **tek** fonksiyon kullanılır (kurum kodu: `InstitutionCodeFormat`, e-posta: `EmailAddress`), aynı değerin bir yolda bir fonksiyonla, başka yolda başka biçimde normalize edilmesi kurum kodunun varlığını sızdırdı (spec 0003 review round 1 #3)
 - T-2 `IgnoreQueryFilters()`, ham SQL, Dapper tenant filtresini atlar — ham sorgu yalnızca Raporlama'da, `TenantId` elle + izolasyon testi — from bootstrap
 - T-3 Hangfire işinde tenant bağlamı yok — her iş `TenantId` parametresi alır, başta bağlam kurulur, yoksa fail — from bootstrap
 - T-4 `DateTime.Now` / `DateTimeKind` — Npgsql `timestamptz`'ye UTC olmayanı reddeder; `TimeProvider` + `DateTimeOffset` UTC, vade `DateOnly` — from bootstrap
