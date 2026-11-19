@@ -111,8 +111,10 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, LoginRes
     }
 
     /// <summary>
-    /// The kurum part is the resolved tenant when the code exists (every spelling of a code shares one key); an
-    /// unknown code keys on its trimmed upper-case text. Hashed: an unknown e-mail is never stored in clear (R4).
+    /// The kurum part is the resolved tenant when the code exists (every spelling of a code shares one key); an unknown
+    /// code keys on its <c>InstitutionCodeFormat</c> normalization — the same one a known code goes through — and only a
+    /// code that can never be valid falls back to its trimmed upper-case text (it never resolves, so it tells nothing).
+    /// Hashed: an unknown e-mail is never stored in clear (R4).
     /// </summary>
     internal static string ThrottleKey(Guid? tenantId, string? institutionCode, string? email)
     {
