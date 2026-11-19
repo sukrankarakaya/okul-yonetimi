@@ -45,7 +45,10 @@ packages/api-client/                       OpenAPI'den üretilen TS istemcisi (w
   **domain/integration event** ile; tetiklenen iş Hangfire ile asenkron.
 - Veliye giden her bildirim Bildirim modülünden geçer. AI yalnızca taslak üretir; onaylanan taslak
   İletişim/Bildirim üzerinden gönderilir (BR-9).
-- Her modülün kendi DbContext'i ve PostgreSQL şeması vardır (`kurum.*`, `tahsilat.*` …).
+- Her modülün kendi DbContext'i ve PostgreSQL şeması vardır (`kurum.*`, `kimlik.*`, `tahsilat.*` …). Kimlik modülü
+  (spec 0003) Kurum modülünü yalnızca `IInstitutionDirectory` sözleşmesiyle kullanır (kurum kodu → kurum). Oturum
+  öncesi tek kiracısız depolama giriş kilidi kaydıdır (özetli anahtar, kurum verisi yok); her kimliği doğrulanmış
+  istekte oturumun açık olduğu Kimlik modülüne sorulur (`ISessionValidator`).
 
 ## Forbidden dependencies (make them testable)
 Mimari testleri (NetArchTest) her kuralı `scripts/check` içinde doğrular:

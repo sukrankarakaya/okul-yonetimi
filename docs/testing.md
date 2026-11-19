@@ -20,16 +20,19 @@
 - Fast/full ayrımı **seçiciyle** (Microsoft.Testing.Platform): `--filter-not-trait "Category=Integration"` (fast) ve
   `--filter-trait "Category=Integration"` (full). `--ignore-exit-code 8` yalnızca "bu test uygulaması sıfır test
   çalıştırdı" kodunu yok sayar (her proje diğer profilin testlerini içermez); toplam sayı çıktıda görünür.
-- Test sayıları (spec 0001, review tur 3 sonrası): backend fast 31 (Kurum birim 14 + WebApi/Core birim 8
-  + mimari 9), entegrasyon 20, web 7, mobil 7. WebApi/Core birim testleri: `backend/tests/Okul.WebApi.UnitTests`.
+- Test sayıları (spec 0003 BUILD sonrası): backend fast 100 (Kurum birim 32 + Kimlik birim 46 + WebApi/Core birim 8
+  + mimari 14), entegrasyon 58, web 27, mobil 24. WebApi/Core birim testleri: `backend/tests/Okul.WebApi.UnitTests`.
+- Kimlik entegrasyon testleri gerçek girişle oturum açar (`ApiFixture.LoginMobileAsync` / `LoginWebAsync`); örnek hesap
+  parolası her koşuda rastgele. Hesabı kilitleyen veya değiştiren testler kendi hesabını açar (`CreateAccountAsync`),
+  örnek hesaplara dokunmaz. Saat gerektiren testler (`LockoutAndRateLimitTests`, `SessionLifetimeTests`) kendi
+  factory'lerini `FakeTimeProvider` ile kurar; rate limit testi kendi limitini verir (varsayılan factory'de sınır yok).
 - Süreler (spec 0001, A-4 sonrası, bu makine): fast ≈ 80 s (8 adım), full ≈ 125–190 s (temiz kurulum sonrası soğuk ilk koşu ≈ 190 s). Fast'te tam `dotnet format` yok —
   biçim (IDE0055) derlemede zorunlu; `using` sırası full'deki `backend-format`'ta. ESLint `--cache` ve `tsc --incremental`
   önbellekleri `node_modules/.cache/` altında (ilk çalıştırma soğuk). Proje `C:\dev\okul-yonetimi`'de (OneDrive senkronu
   dışında); mobil Jest `testTimeout: 15000` soğuk dönüştürme önbelleğinde ilk testin yükleme payıdır, yeniden deneme değil.
 - FluentAssertions kullanılmaz (8+ ticari lisans) — Shouldly.
-- **Determinizm:** `TimeProvider` her yerde, testlerde `FakeTimeProvider` — istisna: JWT ömür doğrulaması sunucuda
-  sistem saatini kullanır (`TokenValidationParameters.TimeProvider` internal), bu yüzden token testleri sabit anlar
-  (2000 / 2100) kullanır; kültür `tr-TR` ve saat dilimi
+- **Determinizm:** `TimeProvider` her yerde, testlerde `FakeTimeProvider` — JWT ömür doğrulaması da uygulamanın
+  `TimeProvider`'ından (`LifetimeValidator`, spec 0003); el yapımı token testleri sabit anlar (2000 / 2100) kullanır; kültür `tr-TR` ve saat dilimi
   `Europe/Istanbul` test başlangıcında sabitlenir; rastgele üretimde sabit seed; ödeme, SMS, Claude,
   speech-to-text, push ve depolama stub'lanır (gerçek dış çağrı yok). Web/mobil bileşen testlerinde
   animasyon kapalı (reduced motion + uygulamanın test anahtarı).

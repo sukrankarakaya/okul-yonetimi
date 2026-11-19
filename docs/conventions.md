@@ -19,7 +19,10 @@ Sabitlendi: spec 0001 (walking skeleton), 2026-11-17. Kaynak: `global.json`, `ba
 - Backend: .NET SDK 10.0.404 (`global.json`, `rollForward: latestFeature`), ASP.NET Core / EF Core 10.0.15,
   Npgsql EF 10.0.3, nArchitecture 2.0.0 (`NArchitecture.Core.Mediator`, `…CrossCuttingConcerns.Exception`;
   MediatR kullanılmaz — A-1). Testler Microsoft.Testing.Platform ile (`global.json` → `test.runner`).
-- Test: xunit.v3 4.0.3, Shouldly 4.3.0, NSubstitute 6.2.0, NetArchTest 1.3.2, Testcontainers 4.17.0 (`postgres:18`)
+- Test: xunit.v3 4.0.3, Shouldly 4.3.0, NSubstitute 6.2.0, NetArchTest 1.3.2, Testcontainers 4.17.0 (`postgres:18`),
+  Microsoft.Extensions.TimeProvider.Testing 10.0.0 (`FakeTimeProvider`)
+- Kimlik: Microsoft.Extensions.Identity.Core 10.0.15 (yalnızca `PasswordHasher`, PBKDF2 — ASP.NET Core Identity'nin geri
+  kalanı kullanılmaz); mobil oturum: expo-secure-store ~58.0.3
 - Veritabanı: PostgreSQL 18
 - Node 24+ (`.nvmrc`; bu makinede 26 çalışıyor), npm workspaces (`web`, `mobile`, `packages/*`)
 - TypeScript **5.9.x** — 7.x değil: openapi-typescript ve Expo TS 5 JS API'sine bağlı. ESLint **9.x** — 10 değil:
@@ -52,6 +55,9 @@ Sabitlendi: spec 0001 (walking skeleton), 2026-11-17. Kaynak: `global.json`, `ba
 - ID: `Guid` v7.
 - Tenant: tenant'a ait her tabloda zorunlu `TenantId` + EF global query filter. `IgnoreQueryFilters()`
   yalnızca sistem işlerinde ve gerekçe yorumuyla.
+- Oturum öncesi (giriş, yenileme) kurum `ITenantScope` ile verilir; sorgular yine filtre altında çalışır. Tek kurumlar
+  arası okuma: kurum kodu → kurum kimliği (`IInstitutionDirectory`, yalnızca kimlik döndürür). Tek kiracısız bağlam:
+  `LoginThrottleDbContext` (mimari testinde adıyla izinli) — spec 0003.
 - Silme: kişisel veride soft delete + saklama süresi sonunda anonimleştirme. Makbuz ve audit log silinmez.
 - Telefon E.164 (`+905…`), e-posta küçük harfe normalize edilerek saklanır.
 - Kişisel veri alanları `[Sensitive]` ile işaretlenir; log'da otomatik maskelenir.

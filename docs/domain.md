@@ -8,6 +8,7 @@
 | Terim | Kod adı | Anlam | Karıştırılmasın |
 |---|---|---|---|
 | Kurum | `Institution` | Sistemi satın alan okul/kurs. **Tenant budur.** | Şube |
+| Kurum kodu | `Institution.Code` | Personelin girişte kurumunu belirttiği kısa, kurumlar arasında benzersiz kod (3–12; A–Z, rakam, tire; büyük/küçük harf duyarsız) | Kurum adı |
 | Şube | `Campus` | Kurumun fiziksel yerleşkesi (kampüs) | Sınıf ("7-A şubesi" anlamında kullanılmaz) |
 | Sınıf seviyesi | `GradeLevel` | 1–12, anaokulu yaş grubu, kurs seviyesi | Sınıf |
 | Sınıf | `ClassGroup` | Bir dönemde bir şubedeki öğrenci grubu (7-A) | |
