@@ -19,7 +19,7 @@ Sabitlendi: spec 0001 (walking skeleton), 2026-11-17. Kaynak: `global.json`, `ba
 - Backend: .NET SDK 10.0.404 (`global.json`, `rollForward: latestFeature`), ASP.NET Core / EF Core 10.0.15,
   Npgsql EF 10.0.3, nArchitecture 2.0.0 (`NArchitecture.Core.Mediator`, `…CrossCuttingConcerns.Exception`;
   MediatR kullanılmaz — A-1). Testler Microsoft.Testing.Platform ile (`global.json` → `test.runner`).
-- Test: xunit.v3 4.0.3, Shouldly 4.3.0, NSubstitute 6.2.0, NetArchTest 1.3.2, Testcontainers 4.17.0 (`postgres:18`)
+- Test: xunit.v3 4.0.3, Shouldly 4.3.0, NSubstitute 6.2.0, NetArchTest 1.3.2, Npgsql 10.0.3 (test veritabanı yardımcıları, `Okul.Testing.Database`), Testcontainers 4.17.0 (`postgres:18`, yalnızca `OKUL_TEST_PG` tanımsızken — ADR 0001)
 - Veritabanı: PostgreSQL 18
 - Node 24+ (`.nvmrc`; bu makinede 26 çalışıyor), npm workspaces (`web`, `mobile`, `packages/*`)
 - TypeScript **5.9.x** — 7.x değil: openapi-typescript ve Expo TS 5 JS API'sine bağlı. ESLint **9.x** — 10 değil:
