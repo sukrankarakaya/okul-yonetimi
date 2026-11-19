@@ -50,11 +50,15 @@ public sealed class AuthTests
         }
     }
 
-    /// <summary>Default deny: a valid signature without a Faz 1 role is not a tenant member.</summary>
+    /// <summary>
+    /// Default deny: a valid signature on an OPEN session (spec 0003, G5) but without a Faz 1 role is not a tenant member.
+    /// </summary>
     [Fact]
     public async Task TokenWithoutKnownRole_IsForbidden()
     {
-        var client = ClientWithToken(Token(_api.SigningKey, InstitutionSampleData.WithCampusesId, LongAgo, FarFuture, role: "Student"));
+        var tenant = InstitutionSampleData.WithCampusesId;
+        var session = await _api.OpenSessionAsync(tenant);
+        var client = ClientWithToken(Token(_api.SigningKey, tenant, LongAgo, FarFuture, role: "Student", session: session));
 
         var response = await client.GetAsync(MineRoute, TestContext.Current.CancellationToken);
 
@@ -81,7 +85,8 @@ public sealed class AuthTests
         return client;
     }
 
-    private static string Token(byte[] key, Guid tenant, DateTime notBefore, DateTime expires, string role = Roles.Administrator) =>
+    private static string Token(
+        byte[] key, Guid tenant, DateTime notBefore, DateTime expires, string role = Roles.Administrator, Guid? session = null) =>
         new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
         {
             Issuer = TokenSettings.Issuer,
@@ -94,6 +99,7 @@ public sealed class AuthTests
                 new Claim(OkulClaims.Subject, Guid.CreateVersion7().ToString()),
                 new Claim(OkulClaims.TenantId, tenant.ToString()),
                 new Claim(OkulClaims.Role, role),
+                new Claim(OkulClaims.Session, (session ?? Guid.CreateVersion7()).ToString()),
             ]),
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256),
         });

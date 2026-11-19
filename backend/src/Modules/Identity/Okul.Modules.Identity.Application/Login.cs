@@ -83,8 +83,7 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, LoginRes
             return new LoginResult(LoginStatus.InvalidCredentials);
         }
 
-        throttle.Reset();
-        await _throttles.SaveAsync(throttle, cancellationToken);
+        await _throttles.ClearAsync(key, cancellationToken);
 
         var sessionId = Guid.CreateVersion7();
         var credential = RefreshCredential.New(account.TenantId, sessionId);

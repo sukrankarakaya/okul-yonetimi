@@ -46,7 +46,11 @@ public sealed class TokenSettings
         throw new InvalidOperationException("Auth:SigningKey is not configured.");
     }
 
-    public TokenValidationParameters ValidationParameters() => new()
+    /// <summary>
+    /// Lifetime is checked against the application's <see cref="TimeProvider"/>, not the system clock (plan 0003, R6):
+    /// expiry tests advance a fake clock instead of waiting 15 minutes.
+    /// </summary>
+    public TokenValidationParameters ValidationParameters(TimeProvider time) => new()
     {
         ValidIssuer = Issuer,
         ValidAudience = Audience,
@@ -55,6 +59,13 @@ public sealed class TokenSettings
         ValidateLifetime = true,
         RequireExpirationTime = true,
         ClockSkew = ClockSkew,
+        LifetimeValidator = (notBefore, expires, _, _) =>
+        {
+            var now = time.GetUtcNow().UtcDateTime;
+            return expires is { } exp
+                && now <= exp.ToUniversalTime() + ClockSkew
+                && (notBefore is not { } nbf || now >= nbf.ToUniversalTime() - ClockSkew);
+        },
         NameClaimType = OkulClaims.Subject,
         RoleClaimType = OkulClaims.Role,
     };
@@ -71,10 +82,29 @@ public sealed class TokenIssuer
         _timeProvider = timeProvider;
     }
 
-    public (string Token, DateTimeOffset ExpiresAt) Issue(Guid userId, Guid tenantId, string role)
+    /// <summary>
+    /// A 15-minute access for one session (spec 0003): account, kurum, session and EVERY role of the account. Never
+    /// outlives the session's absolute end.
+    /// </summary>
+    public (string Token, DateTimeOffset ExpiresAt) Issue(
+        Guid accountId, Guid tenantId, Guid sessionId, IReadOnlyList<string> roles, DateTimeOffset sessionExpiresAt)
     {
         var now = _timeProvider.GetUtcNow();
         var expiresAt = now.Add(TokenSettings.AccessTokenLifetime);
+        if (expiresAt > sessionExpiresAt)
+        {
+            expiresAt = sessionExpiresAt;
+        }
+
+        List<Claim> claims =
+        [
+            new(OkulClaims.Subject, accountId.ToString()),
+            new(OkulClaims.TenantId, tenantId.ToString()),
+            new(OkulClaims.Session, sessionId.ToString()),
+            new(OkulClaims.SessionExpiresAt, sessionExpiresAt.ToUnixTimeSeconds().ToString(System.Globalization.CultureInfo.InvariantCulture)),
+        ];
+        claims.AddRange(roles.Select(role => new Claim(OkulClaims.Role, role)));
+
         var descriptor = new SecurityTokenDescriptor
         {
             Issuer = TokenSettings.Issuer,
@@ -82,12 +112,7 @@ public sealed class TokenIssuer
             IssuedAt = now.UtcDateTime,
             NotBefore = now.UtcDateTime,
             Expires = expiresAt.UtcDateTime,
-            Subject = new ClaimsIdentity(
-            [
-                new Claim(OkulClaims.Subject, userId.ToString()),
-                new Claim(OkulClaims.TenantId, tenantId.ToString()),
-                new Claim(OkulClaims.Role, role),
-            ]),
+            Subject = new ClaimsIdentity(claims),
             SigningCredentials = new SigningCredentials(_settings.SigningKey, SecurityAlgorithms.HmacSha256),
         };
 

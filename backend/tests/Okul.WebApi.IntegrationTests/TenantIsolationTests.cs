@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Mvc;
+using Okul.Modules.Identity.Infrastructure.Persistence;
 using Okul.Modules.Institution.Contracts;
 using Okul.Modules.Institution.Infrastructure.Persistence;
 using Okul.WebApi.Auth;
@@ -9,7 +10,11 @@ using Shouldly;
 
 namespace Okul.WebApi.IntegrationTests;
 
-/// <summary>Sensitive area: Tenant izolasyonu (BR-1). A = kurum with campuses, B = kurum without.</summary>
+/// <summary>
+/// Sensitive area: Tenant izolasyonu (BR-1). A = kurum with campuses, B = kurum without. Sessions come from the REAL
+/// staff login — web cookies and mobile bearer alike (spec 0003, AC-4); B's administrator shares A's administrator's
+/// e-mail, so the kurum kodu alone separates them.
+/// </summary>
 [Trait("Category", "Integration")]
 public sealed class TenantIsolationTests
 {
@@ -28,8 +33,8 @@ public sealed class TenantIsolationTests
     public async Task GetMine_NeverContainsOtherTenantData()
     {
         var ct = TestContext.Current.CancellationToken;
-        var clientA = await _api.ClientForAsync(A, Roles.Teacher);
-        var clientB = await _api.ClientForAsync(B, Roles.Teacher);
+        var (clientA, _) = await _api.LoginMobileAsync(IdentitySampleData.Teacher);
+        var clientB = await _api.LoginWebAsync(IdentitySampleData.OtherKurumAdministrator);
 
         var bodyA = await clientA.GetStringAsync(MineRoute, ct);
         var bodyB = await clientB.GetStringAsync(MineRoute, ct);
@@ -49,7 +54,7 @@ public sealed class TenantIsolationTests
     public async Task GetMine_IgnoresClientSuppliedTenant()
     {
         var ct = TestContext.Current.CancellationToken;
-        var clientB = await _api.ClientForAsync(B, Roles.Administrator);
+        var (clientB, _) = await _api.LoginMobileAsync(IdentitySampleData.OtherKurumAdministrator);
         using var request = new HttpRequestMessage(HttpMethod.Get, $"{MineRoute}?tenantId={A}&tenant_id={A}");
         request.Headers.Add("X-Tenant-Id", A.ToString());
 
@@ -67,8 +72,8 @@ public sealed class TenantIsolationTests
     public async Task GetCampus_OtherTenant_ReturnsSameNotFoundAsMissing()
     {
         var ct = TestContext.Current.CancellationToken;
-        var clientA = await _api.ClientForAsync(A, Roles.Accountant);
-        var clientB = await _api.ClientForAsync(B, Roles.Accountant);
+        var clientA = await _api.LoginWebAsync(IdentitySampleData.Accountant);
+        var (clientB, _) = await _api.LoginMobileAsync(IdentitySampleData.OtherKurumAdministrator);
         var campusOfA = (await clientA.GetFromJsonAsync<InstitutionDto>(MineRoute, ct))!.Campuses[0];
 
         var own = await clientA.GetAsync($"/api/v1/campuses/{campusOfA.Id}", ct);

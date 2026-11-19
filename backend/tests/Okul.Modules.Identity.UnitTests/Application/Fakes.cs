@@ -52,6 +52,12 @@ internal sealed class FakeAccounts(FakeTenantScope scope) : IStaffAccountStore
     public Task<StaffAccount?> FindByIdAsync(Guid accountId, CancellationToken cancellationToken) =>
         Task.FromResult(Visible().SingleOrDefault(a => a.Id == accountId));
 
+    public Task AddAsync(StaffAccount account, CancellationToken cancellationToken)
+    {
+        All.Add(account);
+        return Task.CompletedTask;
+    }
+
     public Task SaveChangesAsync(CancellationToken cancellationToken)
     {
         Saves++;
@@ -103,6 +109,12 @@ internal sealed class FakeThrottles : ILoginThrottleStore
     public Task SaveAsync(LoginThrottle throttle, CancellationToken cancellationToken)
     {
         All[throttle.Key] = throttle;
+        return Task.CompletedTask;
+    }
+
+    public Task ClearAsync(string key, CancellationToken cancellationToken)
+    {
+        All.Remove(key);
         return Task.CompletedTask;
     }
 }

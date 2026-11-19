@@ -9,6 +9,8 @@ public interface IStaffAccountStore
 
     Task<StaffAccount?> FindByIdAsync(Guid accountId, CancellationToken cancellationToken);
 
+    Task AddAsync(StaffAccount account, CancellationToken cancellationToken);
+
     Task SaveChangesAsync(CancellationToken cancellationToken);
 }
 
@@ -30,7 +32,11 @@ public interface ILoginThrottleStore
 {
     Task<LoginThrottle?> FindAsync(string key, CancellationToken cancellationToken);
 
+    /// <summary>Insert-or-update in one statement: two concurrent failures for one pair never collide.</summary>
     Task SaveAsync(LoginThrottle throttle, CancellationToken cancellationToken);
+
+    /// <summary>A successful login removes the pair's state (no row is written for a pair that never failed).</summary>
+    Task ClearAsync(string key, CancellationToken cancellationToken);
 }
 
 /// <summary>Password hashing (plan 0003, R9). Verify with a null hash still does the work of a real check.</summary>

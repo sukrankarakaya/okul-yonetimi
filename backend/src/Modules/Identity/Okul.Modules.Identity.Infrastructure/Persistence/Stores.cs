@@ -20,6 +20,9 @@ internal sealed class StaffAccountStore : IStaffAccountStore
     public Task<StaffAccount?> FindByIdAsync(Guid accountId, CancellationToken cancellationToken) =>
         _db.StaffAccounts.SingleOrDefaultAsync(a => a.Id == accountId, cancellationToken);
 
+    public async Task AddAsync(StaffAccount account, CancellationToken cancellationToken) =>
+        await _db.StaffAccounts.AddAsync(account, cancellationToken);
+
     public Task SaveChangesAsync(CancellationToken cancellationToken) => _db.SaveChangesAsync(cancellationToken);
 }
 
@@ -57,15 +60,24 @@ internal sealed class LoginThrottleStore : ILoginThrottleStore
     }
 
     public Task<LoginThrottle?> FindAsync(string key, CancellationToken cancellationToken) =>
-        _db.LoginThrottles.SingleOrDefaultAsync(t => t.Key == key, cancellationToken);
+        _db.LoginThrottles.AsNoTracking().SingleOrDefaultAsync(t => t.Key == key, cancellationToken);
 
-    public async Task SaveAsync(LoginThrottle throttle, CancellationToken cancellationToken)
-    {
-        if (_db.Entry(throttle).State == EntityState.Detached)
-        {
-            _db.LoginThrottles.Add(throttle);
-        }
+    /// <summary>
+    /// One upsert (spec 0003 build: two concurrent logins for one pair raced on INSERT → 23505 → 500). Concurrent
+    /// failures may lose a count to last-write-wins; the lock still comes, at most one attempt later.
+    /// </summary>
+    public Task SaveAsync(LoginThrottle throttle, CancellationToken cancellationToken) =>
+        _db.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+            INSERT INTO kimlik.login_throttles (key, failure_count, last_failure_at, locked_until)
+            VALUES ({throttle.Key}, {throttle.FailureCount}, {throttle.LastFailureAt}, {throttle.LockedUntil})
+            ON CONFLICT (key) DO UPDATE SET
+                failure_count = EXCLUDED.failure_count,
+                last_failure_at = EXCLUDED.last_failure_at,
+                locked_until = EXCLUDED.locked_until
+            """,
+            cancellationToken);
 
-        await _db.SaveChangesAsync(cancellationToken);
-    }
+    public Task ClearAsync(string key, CancellationToken cancellationToken) =>
+        _db.LoginThrottles.Where(t => t.Key == key).ExecuteDeleteAsync(cancellationToken);
 }
