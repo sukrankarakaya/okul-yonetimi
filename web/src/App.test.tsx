@@ -82,6 +82,39 @@ describe('App (web)', () => {
   });
 });
 
+describe('api-client login answers', () => {
+  it.each([
+    [401, 'invalid'],
+    [429, 'locked'],
+    [500, 'network'],
+    [403, 'network'],
+    [502, 'network'],
+  ])('maps HTTP %i to %s', async (status, kind) => {
+    const { fetch } = backend({ 'POST /api/v1/auth/login': [() => json(status, { detail: 'x' })] });
+    const client = createOkulClient({ baseUrl: 'http://api.test', kind: 'web', fetch });
+
+    expect((await client.login('ATATURK-IST', 'a@b.test', 'dogru-sifre-123')).kind).toBe(kind);
+  });
+
+  it('shows "Bağlantı kurulamadı" — not "hatalı bilgi" — when the server fails, and keeps the password', async () => {
+    const user = userEvent.setup();
+    const { fetch } = backend({
+      'GET /api/v1/auth/session': [() => json(401)],
+      'POST /api/v1/auth/refresh': [() => json(401)],
+      'POST /api/v1/auth/login': [() => json(500)],
+    });
+    render(<App client={createOkulClient({ baseUrl: 'http://api.test', kind: 'web', fetch })} />);
+
+    await user.type(await screen.findByLabelText('Kurum kodu'), 'ATATURK-IST');
+    await user.type(screen.getByLabelText('E-posta'), 'a@b.test');
+    await user.type(screen.getByLabelText('Şifre'), 'dogru-sifre-123');
+    await user.click(screen.getByRole('button', { name: 'Giriş yap' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Bağlantı kurulamadı, tekrar deneyin.');
+    expect(screen.getByLabelText('Şifre')).toHaveValue('dogru-sifre-123');
+  });
+});
+
 describe('api-client session renewal', () => {
   it('renews silently once for parallel requests that both found the access expired', async () => {
     const { fetch, calls } = backend({

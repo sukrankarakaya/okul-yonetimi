@@ -65,6 +65,18 @@ describe('secure session (mobile)', () => {
     expect(requests[0]!.headers.get('Authorization')).toBeNull();
   });
 
+  it.each([
+    [401, 'invalid'],
+    [429, 'locked'],
+    [500, 'network'],
+    [403, 'network'],
+  ])('login maps HTTP %i to %s (review round 1 #7)', async (status, kind) => {
+    const fetch = jest.fn(async () => json(status, { detail: 'x' }));
+    const client = createOkulClient({ baseUrl: 'http://api.test', kind: 'mobile', tokenStore: secureTokenStore(memoryStorage()), fetch });
+
+    expect((await client.login('ATATURK-IST', 'a@b.test', 'dogru-sifre-123')).kind).toBe(kind);
+  });
+
   it('logout clears the secure store', async () => {
     const storage = memoryStorage();
     const store = secureTokenStore(storage);

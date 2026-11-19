@@ -186,7 +186,12 @@ export function createOkulClient(options: OkulClientOptions): OkulClient {
           await remember(data);
           return { kind: 'ok', roles: data.roles };
         }
-        return response.status === 429 ? { kind: 'locked' } : { kind: 'invalid' };
+        // Only 401 is "wrong input" and only 429 is "locked"; a server error or a refused request is not the user's
+        // mistake — it must not clear their password with "hatalı bilgi" (spec 0003 review round 1 #7).
+        if (response.status === 401) {
+          return { kind: 'invalid' };
+        }
+        return response.status === 429 ? { kind: 'locked' } : { kind: 'network' };
       } catch {
         return { kind: 'network' };
       }
