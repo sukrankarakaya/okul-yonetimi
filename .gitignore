@@ -1,0 +1,36 @@
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
+
+# Secrets — never commit these
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# Claude Code personal settings (shared settings.json IS committed after init)
+.claude/settings.local.json
+
+# VS Code extension build output (extensions/vscode)
+extensions/vscode/node_modules/
+extensions/vscode/out/
+extensions/vscode/*.vsix
+
+# .NET (backend/)
+bin/
+obj/
+TestResults/
+*.user
+
+# Node (web/, mobile/, packages/)
+node_modules/
+dist/
+coverage/
+
+# Expo (mobile/)
+.expo/
+web-build/
