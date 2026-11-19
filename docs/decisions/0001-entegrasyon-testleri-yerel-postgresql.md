@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-11-19
+- Revised: 2026-11-19 — uygulamayla hizalama (spec 0002 review tur 1, L-6): veritabanı adı biçimi, parolanın yeri, kalan veritabanının nasıl kanıtlandığı; karar değişmedi
 
 ## Context
 Backend entegrasyon testleri (`backend/tests/Okul.WebApi.IntegrationTests`, check'te `backend-integration`, full
@@ -17,7 +18,7 @@ spec 0001 boyunca bellek baskısı koşuları yavaşlattı ve bir kez soğuk ön
 
 ## Decision
 Entegrasyon testleri, `OKUL_TEST_PG` ortam değişkeni tanımlıysa bu makinedeki yerel PostgreSQL 18 sunucusunu kullanır:
-fixture her koşuda benzersiz bir `okul_test_<guid>` veritabanı oluşturur, migration ve seed uygular, koşu sonunda
+fixture her koşuda benzersiz bir `okul_test_<UTC zaman>_<kısa ek>` veritabanı oluşturur, migration ve seed uygular, koşu sonunda
 siler. Değişken yoksa bugünkü Testcontainers yolu aynen çalışır (ileride CI'da kullanılacak).
 
 ## Consequences
@@ -33,10 +34,12 @@ Maliyetler:
 - Yeni her geliştirme makinesinde bir kez kurulum gerekir (EDB PostgreSQL 18, ICU destekli; test kullanıcısı).
 - Yerel PostgreSQL servisi check'in dışında sürekli çalışır. Bu ANEW-0007'yi bozmaz (check onu başlatmaz,
   durdurmaz), ama doctor yerel yolda `docker info` yerine sunucuya erişimi ön koşul olarak denetlemelidir.
-- Bağlantı dizesi parola içerir: yalnızca kullanıcı ortam değişkeninde durur, repoya girmez. Test kullanıcısı
-  süper kullanıcı değildir, yalnızca `CREATEDB` yetkisi alır.
+- Parola gerekir: ortam değişkeni parolasız bir libpq URI'si taşır, parola standart pgpass dosyasında durur
+  (kullanıcı profilinde); repoya, komut satırına ve çıktıya girmez. Test kullanıcısı süper kullanıcı değildir,
+  yalnızca `CREATEDB` yetkisi alır.
 - Çöken bir koşu veritabanı bırakabilir (konteyner yolunda konteyner yok olunca veri de yok oluyordu). Fixture
-  açılışta 1 saatten eski `okul_test_*` veritabanlarını siler; residue raporu bunu not eder.
+  açılışta 1 saatten eski `okul_test_*` veritabanlarını siler; kalan veritabanı olmadığı VERIFY'da gözlemle
+  kanıtlanır (residue aracı yalnızca süreçleri ölçer).
 - İki kod yolu (yerel / konteyner) var. Bugün yalnızca yerel yol koşar; konteyner yolu CI gelene kadar
   düzenli olarak denenmez.
 

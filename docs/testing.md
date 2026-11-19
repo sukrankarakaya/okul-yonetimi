@@ -47,16 +47,23 @@
   koşmadan, nedeni adlandıran bir mesajla kırmızı olur; konteynere düşülmez.
 - **Tanımsız ya da boş:** her koşuda geçici bir `postgres:18` konteyneri (Testcontainers) — ileride CI yolu.
 - Yerel sürüm elle güncellenir (ana sürüm 18 zorunlu, yama farkı kabul); konteyner görüntüsüyle ayrışabilir.
-- **Kurulum (Windows, bir kez):**
+- **Kurulum (Windows, bir kez — komutlar PowerShell'de):** parola hiçbir komut satırına yazılmaz.
   1. EDB yükleyicisiyle PostgreSQL 18: bileşenler *PostgreSQL Server* + *Command Line Tools*, port 5432; `postgres`
      süper kullanıcı parolasını not et. EDB Windows derlemeleri ICU içerir.
-  2. Kullanıcı PATH'ine `C:\Program Files\PostgreSQL\18\bin` ekle (`pg_isready`, `psql`).
-  3. Test rolü — süper kullanıcı **değil**, yalnızca veritabanı oluşturabilir:
-     `psql -U postgres -c "CREATE ROLE okul_test LOGIN CREATEDB PASSWORD '<parola>'"`
-  4. `%APPDATA%\postgresql\pgpass.conf` (yalnızca senin kullanıcına açık): `localhost:5432:*:okul_test:<parola>`
+  2. Kullanıcı PATH'ine `C:\Program Files\PostgreSQL\18\bin` ekle (Ayarlar → *Ortam değişkenleri*); `pg_isready`,
+     `psql` ve `createuser` buradan gelir.
+  3. Test rolü — süper kullanıcı **değil**, yalnızca veritabanı oluşturabilir; parolalar sorulur:
+     `createuser -U postgres --login --createdb --pwprompt okul_test` (önce yeni rolün parolası iki kez, sonra
+     `postgres` parolası).
+  4. pgpass dosyası (kullanıcı profilinde, yalnızca sana açık):
+     `New-Item -ItemType Directory -Force "$env:APPDATA\postgresql" | Out-Null` ve
+     `notepad "$env:APPDATA\postgresql\pgpass.conf"` ile tek satır yaz: `localhost:5432:*:okul_test:<parola>`
   5. `setx OKUL_TEST_PG "postgresql://okul_test@localhost:5432/postgres"` — sonra terminali ve VS Code'u yeniden aç.
-  6. Doğrula: `psql "$OKUL_TEST_PG" -c "SELECT collname FROM pg_collation WHERE collname = 'tr-TR-x-icu'"` bir satır
-     döner; `./scripts/doctor` → `profile full: runnable` (Docker kapalıyken de).
+  6. Doğrula: `psql $env:OKUL_TEST_PG -c "SELECT collname FROM pg_collation WHERE collname = 'tr-TR-x-icu'"` parola
+     sormadan (pgpass okundu) bir satır döner — Git Bash'te `psql "$OKUL_TEST_PG" …`. Sonra Git Bash'te
+     `./scripts/doctor` → `profile full: runnable` (Docker kapalıyken de).
+- Aynı sunucuda iki entegrasyon koşusu aynı anda koşabilir (her biri kendi veritabanında); biri diğerinin 60 dk'dan
+  eski veritabanlarını süpürebilir, bu beklenen davranıştır.
 
 ## What must be tested
 1. Her iş kuralı BR-1…BR-11 (`docs/domain.md`) en az bir testle.
