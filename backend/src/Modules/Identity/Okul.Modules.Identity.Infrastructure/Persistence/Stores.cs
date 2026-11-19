@@ -47,6 +47,25 @@ internal sealed class SessionStore : ISessionStore
             .Where(s => s.AccountId == accountId && s.Id != keepSessionId && s.ClosedAt == null)
             .ExecuteUpdateAsync(set => set.SetProperty(s => s.ClosedAt, now), cancellationToken);
 
+    public async Task<bool> CloseAsync(Guid sessionId, DateTimeOffset now, CancellationToken cancellationToken) =>
+        await _db.Sessions
+            .Where(s => s.Id == sessionId && s.ClosedAt == null)
+            .ExecuteUpdateAsync(set => set.SetProperty(s => s.ClosedAt, now), cancellationToken) > 0;
+
+    public async Task<bool> TrySaveChangesAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _db.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            _db.ChangeTracker.Clear();
+            return false;
+        }
+    }
+
     public Task SaveChangesAsync(CancellationToken cancellationToken) => _db.SaveChangesAsync(cancellationToken);
 }
 

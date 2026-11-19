@@ -55,21 +55,34 @@ public sealed class RefreshSessionCommandHandler : IRequestHandler<RefreshSessio
 
         var next = RefreshCredential.New(session.TenantId, session.Id);
         var outcome = session.Refresh(presented.Value.Hash, next.Hash, now);
-        await _sessions.SaveChangesAsync(cancellationToken);
 
         switch (outcome)
         {
             case RefreshOutcome.ParallelWithinGrace:
                 return new RefreshResult(RefreshStatus.Conflict);
-            case RefreshOutcome.Reused or RefreshOutcome.Ended:
+            case RefreshOutcome.Ended:
                 return new RefreshResult(RefreshStatus.Rejected);
+            case RefreshOutcome.Reused:
+                // Theft signal: the session closes even if a rotation landed at the same moment (review round 1 #5).
+                if (!await _sessions.TrySaveChangesAsync(cancellationToken))
+                {
+                    await _sessions.CloseAsync(session.Id, now, cancellationToken);
+                }
+
+                return new RefreshResult(RefreshStatus.Rejected);
+        }
+
+        // Rotated — but only if nobody rotated the same credential in between: the write is conditional on the hash we
+        // read (optimistic concurrency, review round 1 #5). The loser answers 409 like a parallel refresh in the grace.
+        if (!await _sessions.TrySaveChangesAsync(cancellationToken))
+        {
+            return new RefreshResult(RefreshStatus.Conflict);
         }
 
         var account = await _accounts.FindByIdAsync(session.AccountId, cancellationToken);
         if (account is null || !account.CanLogInAsStaff)
         {
-            session.Close(now);
-            await _sessions.SaveChangesAsync(cancellationToken);
+            await _sessions.CloseAsync(session.Id, now, cancellationToken);
             return new RefreshResult(RefreshStatus.Rejected);
         }
 
@@ -97,15 +110,8 @@ public sealed class LogoutCommandHandler : IRequestHandler<LogoutCommand, bool>
 
     public async Task<bool> Handle(LogoutCommand request, CancellationToken cancellationToken)
     {
-        var session = await _sessions.FindAsync(request.SessionId, cancellationToken);
-        if (session is null)
-        {
-            return false;
-        }
-
-        session.Close(_time.GetUtcNow());
-        await _sessions.SaveChangesAsync(cancellationToken);
-        return true;
+        // One UPDATE: never collides with a refresh rotating the same session (review round 1 #5).
+        return await _sessions.CloseAsync(request.SessionId, _time.GetUtcNow(), cancellationToken);
     }
 }
 

@@ -42,6 +42,7 @@ namespace Okul.Modules.Identity.Infrastructure.Persistence.Migrations.Identity
                         .HasColumnName("closed_at");
 
                     b.Property<string>("CurrentRefreshHash")
+                        .IsConcurrencyToken()
                         .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)")

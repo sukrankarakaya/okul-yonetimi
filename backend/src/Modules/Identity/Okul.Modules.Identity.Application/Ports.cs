@@ -24,6 +24,15 @@ public interface ISessionStore
     /// <summary>Closes every open session of the account except <paramref name="keepSessionId"/> (Requirement 7).</summary>
     Task CloseOthersAsync(Guid accountId, Guid keepSessionId, DateTimeOffset now, CancellationToken cancellationToken);
 
+    /// <summary>Closes one session in a single UPDATE (if still open). False when there is no such open session.</summary>
+    Task<bool> CloseAsync(Guid sessionId, DateTimeOffset now, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Saves, unless the refresh credential changed since it was read (optimistic concurrency on the current hash):
+    /// false then, and nothing is written.
+    /// </summary>
+    Task<bool> TrySaveChangesAsync(CancellationToken cancellationToken);
+
     Task SaveChangesAsync(CancellationToken cancellationToken);
 }
 

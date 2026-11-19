@@ -109,6 +109,22 @@ public sealed class SessionLifetimeTests
             .ShouldBe(HttpStatusCode.OK);
     }
 
+    /// <summary>Review round 1 #5 — two refreshes truly at once: one renews, the other gets 409; the renewed one works.</summary>
+    [Fact]
+    public async Task ConcurrentRefresh_OneRenews_OtherConflicts_SessionStaysOpen()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (_, session) = await _api.LoginMobileAsync(IdentitySampleData.Teacher);
+
+        var answers = await Task.WhenAll(Enumerable.Range(0, 2).Select(_ =>
+            _api.Testing.CreateClient().PostAsJsonAsync(RefreshRoute, new RefreshRequest(session.RefreshToken), ct)));
+
+        answers.Select(a => a.StatusCode).ShouldBe([HttpStatusCode.OK, HttpStatusCode.Conflict], ignoreOrder: true);
+        var renewed = await answers.Single(a => a.IsSuccessStatusCode).Content.ReadFromJsonAsync<SessionResponse>(ct);
+        (await _api.Testing.CreateClient().PostAsJsonAsync(RefreshRoute, new RefreshRequest(renewed!.RefreshToken), ct))
+            .StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
     private static Task<HttpResponseMessage> Refresh(HttpClient web, string client, SessionResponse session, CancellationToken ct) =>
         client == "web"
             ? web.PostAsync(RefreshRoute, null, ct)

@@ -96,6 +96,15 @@ internal sealed class FakeSessions(FakeTenantScope scope) : ISessionStore
         return Task.CompletedTask;
     }
 
+    public Task<bool> CloseAsync(Guid sessionId, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var session = All.SingleOrDefault(s => s.Id == sessionId && scope.Current is { } t && s.TenantId == t && s.ClosedAt is null);
+        session?.Close(now);
+        return Task.FromResult(session is not null);
+    }
+
+    public Task<bool> TrySaveChangesAsync(CancellationToken cancellationToken) => Task.FromResult(true);
+
     public Task SaveChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }
 

@@ -80,6 +80,40 @@ public sealed class IdentityPersistenceTests
         }
     }
 
+    /// <summary>
+    /// Review round 1 #5 — two requests that read the same session and both rotate it: only the first write lands, the
+    /// second is refused (optimistic concurrency on the current refresh hash) instead of silently overwriting it.
+    /// </summary>
+    [Fact]
+    public async Task TwoRotationsOfOneReadSession_OnlyTheFirstIsWritten()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await MigrateAsync(ct);
+        var now = DateTimeOffset.UtcNow;
+        var session = Session.Start(Guid.CreateVersion7(), TenantA, Guid.CreateVersion7(), ClientKind.Web, now, "h0");
+        await using (var db = Identity(null))
+        {
+            db.Sessions.Add(session);
+            await db.SaveChangesAsync(ct);
+        }
+
+        await using var provider = Services(TenantA);
+        await using var first = provider.CreateAsyncScope();
+        await using var second = provider.CreateAsyncScope();
+        var storeA = first.ServiceProvider.GetRequiredService<ISessionStore>();
+        var storeB = second.ServiceProvider.GetRequiredService<ISessionStore>();
+        var readA = (await storeA.FindAsync(session.Id, ct))!;
+        var readB = (await storeB.FindAsync(session.Id, ct))!;
+
+        readA.Refresh("h0", "hA", now).ShouldBe(RefreshOutcome.Rotated);
+        readB.Refresh("h0", "hB", now).ShouldBe(RefreshOutcome.Rotated);
+        (await storeA.TrySaveChangesAsync(ct)).ShouldBeTrue();
+        (await storeB.TrySaveChangesAsync(ct)).ShouldBeFalse();
+
+        await using var db2 = Identity(TenantA);
+        (await db2.Sessions.SingleAsync(s => s.Id == session.Id, ct)).CurrentRefreshHash.ShouldBe("hA");
+    }
+
     [Fact]
     public async Task LoginThrottle_IsStoredByHashedKey_WithoutATenant()
     {

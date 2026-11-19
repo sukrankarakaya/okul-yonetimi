@@ -53,7 +53,9 @@ public sealed class IdentityDbContext : TenantDbContext
             session.Property(s => s.StartedAt).HasColumnName("started_at");
             session.Property(s => s.ExpiresAt).HasColumnName("expires_at");
             session.Property(s => s.ClosedAt).HasColumnName("closed_at");
-            session.Property(s => s.CurrentRefreshHash).HasColumnName("current_refresh_hash").IsRequired().HasMaxLength(64);
+            // Optimistic concurrency: a rotation writes only if the hash it read is still current (review round 1 #5).
+            session.Property(s => s.CurrentRefreshHash).HasColumnName("current_refresh_hash").IsRequired().HasMaxLength(64)
+                .IsConcurrencyToken();
             session.Property(s => s.PreviousRefreshHash).HasColumnName("previous_refresh_hash").HasMaxLength(64);
             session.Property(s => s.RotatedAt).HasColumnName("rotated_at");
             session.HasIndex(s => new { s.TenantId, s.AccountId }).HasDatabaseName("ix_sessions_tenant_account");
