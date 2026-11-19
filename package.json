@@ -1,0 +1,16 @@
+{
+  "name": "okul-yonetimi",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "web",
+    "mobile"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.5",
+    "typescript": "~5.9.3"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "name": "@okul/api-client",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Typed client for the Okul Web API, generated from openapi.json (shared by web and mobile).",
+  "main": "src/client.ts",
+  "types": "src/client.ts",
+  "scripts": {
+    "generate": "openapi-typescript openapi.json -o src/schema.ts"
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.17.0"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.13.0",
+    "typescript": "~5.9.3"
+  }
+}
