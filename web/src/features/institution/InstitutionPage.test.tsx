@@ -30,7 +30,7 @@ function clientReturning(...responses: (() => Response)[]) {
     if (!next) throw new Error('unexpected request');
     return next();
   });
-  const client = createOkulClient({ baseUrl: 'http://api.test', getToken: () => 'token', fetch });
+  const client = createOkulClient({ baseUrl: 'http://api.test', kind: 'web', fetch });
   return { load: () => client.getMyInstitution(), fetch };
 }
 
@@ -88,11 +88,14 @@ describe('InstitutionPage', () => {
     expect(screen.getByRole('button', { name: texts.retry })).toBeInTheDocument();
   });
 
-  it('shows "Oturum açmanız gerekiyor." without any kurum data when there is no (or an expired) session', async () => {
-    const { load } = clientReturning(() => json(401));
-    render(<InstitutionPage loadInstitution={load} />);
+  // Spec 0003 changed this state (0001's "Oturum açmanız gerekiyor." text): no or an ended session goes back to
+  // Giriş — the page hands it to the app and shows no kurum data.
+  it('hands a missing or ended session back to the app without any kurum data', async () => {
+    const onSessionEnded = vi.fn();
+    const { load } = clientReturning(() => json(401), () => json(401));
+    render(<InstitutionPage loadInstitution={load} onSessionEnded={onSessionEnded} />);
 
-    expect(await screen.findByText(texts.unauthenticated)).toBeInTheDocument();
+    await vi.waitFor(() => expect(onSessionEnded).toHaveBeenCalledWith(true));
     expect(screen.queryByRole('heading')).not.toBeInTheDocument();
     expect(screen.queryByText('Atatürk Koleji')).not.toBeInTheDocument();
     expect(document.title).toBe(texts.defaultTitle);
@@ -106,5 +109,19 @@ describe('InstitutionPage', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Ali & Veli <b>Koleji</b>' })).toBeInTheDocument();
     expect(screen.getByText('<img src=x onerror=alert(1)>Şube')).toBeInTheDocument();
     expect(container.querySelector('b, img')).toBeNull();
+  });
+
+  it('offers "Şifremi değiştir" and "Çıkış yap" once the kurum is shown (spec 0003, AC-10)', async () => {
+    const user = userEvent.setup();
+    const onLogout = vi.fn();
+    const onChangePassword = vi.fn();
+    const { load } = clientReturning(() => json(200, institution));
+    render(<InstitutionPage loadInstitution={load} onLogout={onLogout} onChangePassword={onChangePassword} notice="Şifreniz değiştirildi." />);
+
+    expect(await screen.findByText('Şifreniz değiştirildi.')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Şifremi değiştir' }));
+    await user.click(screen.getByRole('button', { name: 'Çıkış yap' }));
+    expect(onChangePassword).toHaveBeenCalledOnce();
+    expect(onLogout).toHaveBeenCalledOnce();
   });
 });

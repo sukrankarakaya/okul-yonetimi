@@ -1,4 +1,4 @@
-import { createOkulClient, type InstitutionResult } from '@okul/api-client';
+import { createOkulClient, type InstitutionResult, type StoredTokens, type TokenStore } from '@okul/api-client';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { AccessibilityInfo } from 'react-native';
 import { InstitutionScreen, texts } from './InstitutionScreen';
@@ -29,7 +29,13 @@ function clientReturning(...responses: (() => Response)[]) {
     if (!next) throw new Error('unexpected request');
     return next();
   });
-  const client = createOkulClient({ baseUrl: 'http://api.test', getToken: () => 'token', fetch });
+  let tokens: StoredTokens | null = { accessToken: 'access', refreshToken: 'refresh' };
+  const tokenStore: TokenStore = {
+    read: async () => tokens,
+    write: async (t) => void (tokens = t),
+    clear: async () => void (tokens = null),
+  };
+  const client = createOkulClient({ baseUrl: 'http://api.test', kind: 'mobile', tokenStore, fetch });
   return { load: () => client.getMyInstitution(), fetch };
 }
 
@@ -97,14 +103,32 @@ describe('InstitutionScreen', () => {
     expect(await screen.findByRole('header', { name: 'Atatürk Koleji' })).toBeOnTheScreen();
   });
 
-  it('shows "Oturum açmanız gerekiyor." without any kurum data when there is no (or an expired) session', async () => {
-    const { load } = clientReturning(() => json(401));
-    await render(<InstitutionScreen loadInstitution={load} />);
+  // Spec 0003 changed this state (0001's "Oturum açmanız gerekiyor." text): no or an ended session goes back to
+  // Giriş — the screen hands it to the app and shows no kurum data.
+  it('hands an ended session back to the app without any kurum data', async () => {
+    const onSessionEnded = jest.fn();
+    const { load } = clientReturning(() => json(401), () => json(401));
+    await render(<InstitutionScreen loadInstitution={load} onSessionEnded={onSessionEnded} />);
 
-    expect(await screen.findByText(texts.unauthenticated)).toBeOnTheScreen();
+    await waitFor(() => expect(onSessionEnded).toHaveBeenCalledWith(true));
     expect(screen.queryByText('Atatürk Koleji')).toBeNull();
     expect(screen.queryByRole('header')).toBeNull();
-    await waitFor(() => expect(announce).toHaveBeenCalledWith(texts.unauthenticated));
+  });
+
+  it('offers "Şifremi değiştir" and "Çıkış yap" with the kurum, and announces a notice (spec 0003, AC-10)', async () => {
+    const onLogout = jest.fn();
+    const onChangePassword = jest.fn();
+    const { load } = clientReturning(() => json(200, institution));
+    await render(
+      <InstitutionScreen loadInstitution={load} onLogout={onLogout} onChangePassword={onChangePassword} notice="Şifreniz değiştirildi." />,
+    );
+
+    expect(await screen.findByText('Şifreniz değiştirildi.')).toBeOnTheScreen();
+    await waitFor(() => expect(announce).toHaveBeenCalledWith('Şifreniz değiştirildi.'));
+    await fireEvent.press(screen.getByRole('button', { name: 'Şifremi değiştir' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Çıkış yap' }));
+    expect(onChangePassword).toHaveBeenCalledTimes(1);
+    expect(onLogout).toHaveBeenCalledTimes(1);
   });
 
   it('renders names with special characters as plain text', async () => {
