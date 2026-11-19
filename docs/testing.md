@@ -51,7 +51,7 @@
   1. EDB yükleyicisiyle PostgreSQL 18: bileşenler *PostgreSQL Server* + *Command Line Tools*, port 5432; `postgres`
      süper kullanıcı parolasını not et. EDB Windows derlemeleri ICU içerir.
   2. Kullanıcı PATH'ine `C:\Program Files\PostgreSQL\18\bin` ekle (Ayarlar → *Ortam değişkenleri*); `pg_isready`,
-     `psql` ve `createuser` buradan gelir.
+     `psql` ve `createuser` buradan gelir. Sonra **yeni bir PowerShell aç** (açık pencere yeni PATH'i görmez).
   3. Test rolü — süper kullanıcı **değil**, yalnızca veritabanı oluşturabilir; parolalar sorulur:
      `createuser -U postgres --login --createdb --pwprompt okul_test` (önce yeni rolün parolası iki kez, sonra
      `postgres` parolası).
