@@ -71,8 +71,9 @@ public sealed class TestDatabase : IAsyncDisposable
 
     /// <summary>
     /// Drops every database whose name <see cref="TestDatabaseNames.IsStale"/> holds, closing its open
-    /// connections. A stale database this role may not drop (another owner, no superuser) is skipped with a
-    /// warning (plan 0002, R5). Returns the dropped names.
+    /// connections. A stale database this role may not drop — another owner (plan 0002, R5), or a DROP the server
+    /// refuses, e.g. a session of another role that FORCE may not end (review round 1, L-1; T-14) — is skipped
+    /// with a warning; the run goes on. Returns the dropped names.
     /// </summary>
     public static async Task<IReadOnlyList<string>> SweepStaleAsync(
         string maintenance, DateTimeOffset now, Action<string> warn, CancellationToken cancellationToken = default)
@@ -103,8 +104,15 @@ public sealed class TestDatabase : IAsyncDisposable
                 continue;
             }
 
-            await ExecuteAsync(maintenance, $"DROP DATABASE IF EXISTS {Quote(name)} WITH (FORCE)", cancellationToken);
-            dropped.Add(name);
+            try
+            {
+                await ExecuteAsync(maintenance, $"DROP DATABASE IF EXISTS {Quote(name)} WITH (FORCE)", cancellationToken);
+                dropped.Add(name);
+            }
+            catch (PostgresException error)
+            {
+                warn($"Eski test veritabanı silinemedi, atlandı: {name} ({error.SqlState}: {error.MessageText})");
+            }
         }
 
         return dropped;

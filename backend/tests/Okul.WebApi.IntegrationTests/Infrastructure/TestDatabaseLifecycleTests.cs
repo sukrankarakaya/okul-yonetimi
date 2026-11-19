@@ -85,6 +85,43 @@ public sealed class TestDatabaseLifecycleTests
         }
     }
 
+    /// <summary>
+    /// CB-3, review round 1 L-1 — a stale database the server refuses to drop (here a template database, which no
+    /// role may drop) is skipped with a warning; the sweep goes on and drops the other stale one.
+    /// </summary>
+    [Fact]
+    public async Task Sweep_SkipsUndroppable_WithWarning_AndContinues()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var now = DateTimeOffset.UtcNow;
+        var undroppable = TestDatabaseNames.NewName(now.AddMinutes(-90));
+        var stale = TestDatabaseNames.NewName(now.AddMinutes(-90));
+        var warnings = new List<string>();
+
+        try
+        {
+            await TestDatabase.CreateNamedAsync(Maintenance, undroppable, ct);
+            await TestDatabase.CreateNamedAsync(Maintenance, stale, ct);
+            await ExecuteAsync($"ALTER DATABASE \"{undroppable}\" IS_TEMPLATE true", ct);
+
+            var dropped = await TestDatabase.SweepStaleAsync(Maintenance, now, warnings.Add, ct);
+
+            dropped.ShouldNotContain(undroppable);
+            (await TestDatabase.ExistsAsync(Maintenance, undroppable, ct)).ShouldBeTrue();
+            warnings.ShouldContain(w => w.Contains(undroppable, StringComparison.Ordinal));
+            (await TestDatabase.ExistsAsync(Maintenance, stale, ct)).ShouldBeFalse();
+        }
+        finally
+        {
+            await ExecuteAsync(
+                $"DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_database WHERE datname = '{undroppable}') THEN "
+                + $"ALTER DATABASE \"{undroppable}\" IS_TEMPLATE false; END IF; END $$",
+                ct);
+            await TestDatabase.DropNamedAsync(Maintenance, undroppable, ct);
+            await TestDatabase.DropNamedAsync(Maintenance, stale, ct);
+        }
+    }
+
     /// <summary>CB-4 + PB-5 — an unreachable server fails with host, port and user named, the password never.</summary>
     [Fact]
     public async Task UnreachableServer_FailsWithReason_WithoutPassword()
@@ -107,5 +144,13 @@ public sealed class TestDatabaseLifecycleTests
         error.Message.ShouldContain("127.0.0.1:1");
         error.Message.ShouldContain("okul_test");
         error.Message.ShouldNotContain(password);
+    }
+
+    private async Task ExecuteAsync(string sql, CancellationToken ct)
+    {
+        await using var connection = new NpgsqlConnection(Maintenance);
+        await connection.OpenAsync(ct);
+        await using var command = new NpgsqlCommand(sql, connection);
+        await command.ExecuteNonQueryAsync(ct);
     }
 }
