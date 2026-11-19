@@ -64,6 +64,8 @@
      `./scripts/doctor` → `profile full: runnable` (Docker kapalıyken de).
 - Aynı sunucuda iki entegrasyon koşusu aynı anda koşabilir (her biri kendi veritabanında); biri diğerinin 60 dk'dan
   eski veritabanlarını süpürebilir, bu beklenen davranıştır.
+- Sweep "silinemedi, atlandı" uyarısı verirse (ör. `42809`: kesilmiş bir test koşusundan kalan şablon veritabanı),
+  elle temizle: `psql $env:OKUL_TEST_PG -c 'ALTER DATABASE "<ad>" IS_TEMPLATE false' -c 'DROP DATABASE "<ad>"'`.
 
 ## What must be tested
 1. Her iş kuralı BR-1…BR-11 (`docs/domain.md`) en az bir testle.

@@ -82,10 +82,7 @@ public sealed class TestDatabaseLifecycleTests
         }
         finally
         {
-            foreach (var name in kept.Prepend(stale))
-            {
-                await TestDatabase.DropNamedAsync(Maintenance, name, ct);
-            }
+            await CleanUpAsync([.. kept.Prepend(stale).Select(name => (Func<Task>)(() => DropAsync(name)))]);
         }
     }
 
@@ -117,12 +114,14 @@ public sealed class TestDatabaseLifecycleTests
         }
         finally
         {
-            await ExecuteAsync(
-                $"DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_database WHERE datname = '{undroppable}') THEN "
-                + $"ALTER DATABASE \"{undroppable}\" IS_TEMPLATE false; END IF; END $$",
-                ct);
-            await TestDatabase.DropNamedAsync(Maintenance, undroppable, ct);
-            await TestDatabase.DropNamedAsync(Maintenance, stale, ct);
+            // The template flag must come off first: no sweep can ever drop a template database (T-14).
+            await CleanUpAsync(
+                () => ExecuteAsync(
+                    $"DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_database WHERE datname = '{undroppable}') THEN "
+                    + $"ALTER DATABASE \"{undroppable}\" IS_TEMPLATE false; END IF; END $$",
+                    CancellationToken.None),
+                () => DropAsync(undroppable),
+                () => DropAsync(stale));
         }
     }
 
@@ -149,6 +148,33 @@ public sealed class TestDatabaseLifecycleTests
         error.Message.ShouldContain("okul_test");
         error.Message.ShouldNotContain(password);
     }
+
+    /// <summary>
+    /// Test clean-up (review round 2, L-1; T-16): never on the test's token — a cancelled run would skip it and
+    /// leave databases the sweep never removes — and every step runs even when an earlier one fails.
+    /// </summary>
+    private static async Task CleanUpAsync(params Func<Task>[] steps)
+    {
+        var errors = new List<Exception>();
+        foreach (var step in steps)
+        {
+            try
+            {
+                await step();
+            }
+            catch (Exception error)
+            {
+                errors.Add(error);
+            }
+        }
+
+        if (errors.Count > 0)
+        {
+            throw new AggregateException("Test temizliği tamamlanamadı.", errors);
+        }
+    }
+
+    private Task DropAsync(string name) => TestDatabase.DropNamedAsync(Maintenance, name, CancellationToken.None);
 
     private async Task ExecuteAsync(string sql, CancellationToken ct)
     {
