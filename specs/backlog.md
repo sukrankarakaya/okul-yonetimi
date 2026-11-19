@@ -14,11 +14,12 @@ step 7). Nothing lands here without that decision; noise is rejected in the tria
   A decision deferred at bootstrap (its REPORT) uses Source: bootstrap <YYYY-MM-DD>.
 -->
 
-- **B-1** — Commit ve push ertelendi: remote/CI yok, çalışma yalnızca lokal; `doctor`'ın specs/done
-  immutability kontrolü ve geri alma noktası commit gelene kadar yok — Source: bootstrap 2026-11-17 —
-  Severity: medium — Recommendation: en geç ilk feature ship'inde, insan onayıyla `chore/bootstrap`
-  + feature dalında lokal commit; remote eklenince trivial politikası (1)'e ve CI'ya geç —
-  Deferred by: kullanıcı, 2026-11-17, "commitlemek için vakit kaybetmek istemiyorum"
+- **B-1** — Remote/CI yok, push yok: çalışma yalnızca lokal; full green CI'da değil lokal koşudan gelir, trivial
+  politikası (2)'de — **Commit kısmı çözüldü:** 2026-11-19 spec 0001 ship'inde lokal commit'ler başladı
+  (`chore/bootstrap` 7ba1a23, `feature/0001-walking-skeleton`, `main` 008324b); `doctor` immutability kontrolü
+  etkin — Source: bootstrap 2026-11-17 — Severity: low (commit gelince medium'dan düştü) — Recommendation: remote
+  eklenince push, trivial politikası (1)'e (PR + bir reviewer) ve CI'ya geç — Deferred by: kullanıcı, 2026-11-17,
+  "commitlemek için vakit kaybetmek istemiyorum"; commit kısmı kapandı: kullanıcı, 2026-11-19, ship onayı
 - **B-2** — api-client drift kontrolü: üretilmiş TS tipleri backend OpenAPI'den kopabilir; check'te
   "yeniden üret + fark yok" adımı yok — Source: spec 0001, plan risk R5 — Severity: low —
   Recommendation: commit'ler başlayınca (B-1) fast adım olarak ekle — Deferred by: kullanıcı, 2026-11-17, plan 0001 R5 kararı
