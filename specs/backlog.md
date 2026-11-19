@@ -70,5 +70,6 @@ step 7). Nothing lands here without that decision; noise is rejected in the tria
   Recommendation: çok örnekli p50/p95 ölçümü; fark anlamlıysa bilinmeyen kodda da eşdeğer bir sorgu — Deferred by:
   kullanıcı, 2026-11-19, triage (R-12)
 - **B-12** — `kimlik.login_throttles` ve `kimlik.sessions` için temizlik yok; rastgele e-postalı denemeler ve biten oturumlar
-  kalıcı satır bırakır — Source: spec 0003, review round 1 #12 — Severity: info — Recommendation: süresi geçmiş satırları
+  kalıcı satır bırakır; fix-1'den beri her hesabın ilk başarılı girişi de bir (sıfırlanmış) satır yazar — Source: spec 0003,
+  review round 1 #12 + round 2 I-2 — Severity: info — Recommendation: süresi geçmiş satırları
   silen bir arka plan işi (Hangfire geldiğinde) — Deferred by: kullanıcı, 2026-11-19, triage
