@@ -43,6 +43,21 @@
 - **2FA sıfırlama (operasyon):** `dotnet Okul.WebApi.dll reset-2fa --kurum-kodu <kod> --e-posta <adres>` — 2FA ve
   kurtarma kodlarını siler, hesabın bütün oturumlarını ve ara adımlarını kapatır; yalnızca sonucu ve kapanan oturum
   sayısını yazar. Sunucuya erişim yetkidir; kim, ne zaman çalıştırdı kaydı audit log spec'iyle gelir.
+- **Veli girişi (spec 0007, ADR 0002):** kurum kodu + cep telefonu → 6 haneli, tek kullanımlık, 5 dk geçerli SMS kodu
+  (yeni kod ve "Vazgeç" bekleyeni iptal eder). Kayıtlı olan/olmayan numara ve bilinmeyen kurum kodu **aynı yanıtı** alır;
+  kayıtlı olmayana da gönderilmeyen bir kod düşer, süre/iptal/kilit davranışı aynıdır; kod isteği en az 1,5 sn yanıt verir
+  (`Auth:GuardianCodeMinimumResponseMs`) ki SMS süresi kayıtlıyı ele vermesin — yalnız sağlayıcı yavaş/çökükken fark
+  görünür. Aynı kurum + telefon için 5 yanlış kod / 15 dk kilit, dakikada 3 kod isteği; kaynak başına dakikada 20.
+  Oturum personelinkiyle aynı kurallar (Kimlik, `AccountKind = Guardian`); veli oturumu personel uçlarına erişemez
+  (varsayılan politika yalnız personel rolleri; çıkış, oturum ve kurum bilgisi uçları ikisine açık); veli verisi güncel
+  KVKK rızası ister (rıza: veli, kurum, metin sürümü, zaman; sürüm değişince yeniden).
+- **`Auth:GuardianCodeKey`** (base64, 32 bayt, gizli yapılandırma): kurum kodu + telefon anahtarı ve kod HMAC özetle
+  saklanır — veritabanı kopyası telefon ya da kod denemeye yetmez. Üretimde yoksa uygulama açılmaz; Geliştirme/Test'te geçici.
+- **SMS:** üretimde yalnız Netgsm (`Sms:Provider = Netgsm`, `Sms:Netgsm:UserCode|Password|SenderId` secret manager'da);
+  sahte gönderici yalnız Development/Testing, başka ortamda uygulama açılmaz. Kod ve tam telefon hiçbir log/yanıtta yok.
+  Gerçek gönderim yalnız sahte HTTP ile kanıtlı — hesap gelince manuel duman testi (plan 0007, R-5).
+- **Veli sıfırlama (operasyon):** `dotnet Okul.WebApi.dll reset-veli --kurum-kodu <kod> --telefon <numara>` — velinin
+  bütün oturumlarını kapatır, kilidi kaldırır, bekleyen kodu bitirir; yalnızca sonucu ve kapanan oturum sayısını yazar.
 - Giriş ve OTP'de rate limit + hesap kilitleme. Personel girişi (spec 0003): aynı kurum kodu + e-posta için 5 hata /
   15 dk → 15 dk kilit (var olmayan hesapta da aynı); kaynak başına dakikada 20 deneme. TLS sonlandıran proxy arkasında
   kaynak adresi için B-4.

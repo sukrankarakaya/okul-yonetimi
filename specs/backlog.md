@@ -99,7 +99,8 @@ step 7). Nothing lands here without that decision; noise is rejected in the tria
   (`backend/src/Modules/Parents/Okul.Modules.Parents.Domain/Parent.cs`) — Severity: medium (süreç: kanıtsız işaretli
   kriter) — Recommendation: davranış 0006 (çocuk listesi), 0008 (dersler), 0009 (duyurular); veli oturumu 0007 ile gelir; notlar ayrı spec;
   0005 VERIFY tablosunu yeniden okuyup kanıtsız işaretin nasıl geçtiğini süreç dersine yaz — Deferred by: kullanıcı,
-  2026-11-20, 0006 split onayı
+  2026-11-20, 0006 split onayı. **Not (spec 0007, 2026-11-20):** 0005'in giriş davranışı (AC-1…5, 8…13) 0007 ile
+  uçtan uca karşılandı; çocuk verisi (AC-6, AC-7) 0006/0008/0009 ile kapanır
 - **B-18** — Çocuk fotoğrafının veliye gösterimi için 0005 KVKK rızasının yeterliliği hukuken teyit edilmedi — Source:
   spec 0006 self-critique G-3 — Severity: low — Recommendation: KVKK danışmanına sor; ayrı açık rıza gerekirse fotoğrafı
   rızaya bağla, yedek baş harfler zaten var (0006 AC-3) — Deferred by: kullanıcı, 2026-11-20, G-3 onayı
