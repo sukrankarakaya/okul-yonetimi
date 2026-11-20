@@ -1,9 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-  <ItemGroup>
-    <PackageReference Include="NArchitecture.Core.Mediator" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\Okul.Modules.Parents.Domain\Okul.Modules.Parents.Domain.csproj" />
-    <ProjectReference Include="..\..\..\..\Core\Okul.Core\Okul.Core.csproj" />
-  </ItemGroup>
-</Project>

@@ -293,6 +293,12 @@
           "Microsoft.EntityFrameworkCore.Relational": "[10.0.15, )"
         }
       },
+      "okul.modules.enrollment.contracts": {
+        "type": "Project"
+      },
+      "okul.modules.enrollment.domain": {
+        "type": "Project"
+      },
       "okul.modules.identity.application": {
         "type": "Project",
         "dependencies": {
@@ -341,26 +347,6 @@
           "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.3, )",
           "Okul.Modules.Institution.Application": "[1.0.0, )",
           "Okul.Modules.Institution.Domain": "[1.0.0, )"
-        }
-      },
-      "okul.modules.parents.application": {
-        "type": "Project",
-        "dependencies": {
-          "NArchitecture.Core.Mediator": "[2.0.0, )",
-          "Okul.Modules.Parents.Domain": "[1.0.0, )"
-        }
-      },
-      "okul.modules.parents.domain": {
-        "type": "Project"
-      },
-      "okul.modules.parents.infrastructure": {
-        "type": "Project",
-        "dependencies": {
-          "Microsoft.EntityFrameworkCore": "[10.0.15, )",
-          "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.3, )",
-          "Okul.Core": "[1.0.0, )",
-          "Okul.Modules.Parents.Application": "[1.0.0, )",
-          "Okul.Modules.Parents.Domain": "[1.0.0, )"
         }
       },
       "Microsoft.EntityFrameworkCore": {
