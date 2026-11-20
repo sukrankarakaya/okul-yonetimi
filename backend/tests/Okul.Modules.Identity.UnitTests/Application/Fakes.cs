@@ -64,6 +64,12 @@ internal sealed class FakeAccounts(FakeTenantScope scope) : IStaffAccountStore
         return Task.CompletedTask;
     }
 
+    public Task<bool> TrySaveChangesAsync(CancellationToken cancellationToken)
+    {
+        Saves++;
+        return Task.FromResult(true);
+    }
+
     // No tenant = no rows (fail closed), as the real filter.
     private IEnumerable<StaffAccount> Visible() => All.Where(a => scope.Current is { } t && a.TenantId == t);
 }
@@ -84,6 +90,13 @@ internal sealed class FakeSessions(FakeTenantScope scope) : ISessionStore
 
         All.Add(session);
         return Task.CompletedTask;
+    }
+
+    public Task<int> CloseAllAsync(Guid accountId, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var open = All.Where(s => s.AccountId == accountId && s.ClosedAt == null).ToList();
+        open.ForEach(s => s.Close(now));
+        return Task.FromResult(open.Count);
     }
 
     public Task CloseOthersAsync(Guid accountId, Guid keepSessionId, DateTimeOffset now, CancellationToken cancellationToken)
@@ -137,5 +150,32 @@ internal sealed class FakeHasher : IPasswordHasher
     {
         Verifications++;
         return passwordHash is not null && passwordHash == Hash(password);
+    }
+}
+
+internal sealed class FakeChallenges(FakeTenantScope scope) : ILoginChallengeStore
+{
+    public List<LoginChallenge> All { get; } = [];
+
+    public Task<LoginChallenge?> FindAsync(Guid challengeId, CancellationToken cancellationToken) =>
+        Task.FromResult(All.SingleOrDefault(c => scope.Current is { } t && c.TenantId == t && c.Id == challengeId));
+
+    public Task AddAsync(LoginChallenge challenge, CancellationToken cancellationToken)
+    {
+        All.Add(challenge);
+        return Task.CompletedTask;
+    }
+
+    public Task<bool> TryEndAsync(Guid challengeId, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var challenge = All.SingleOrDefault(c => c.Id == challengeId && c.EndedAt == null);
+        challenge?.End(now);
+        return Task.FromResult(challenge is not null);
+    }
+
+    public Task EndAllAsync(Guid accountId, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        All.Where(c => c.AccountId == accountId).ToList().ForEach(c => c.End(now));
+        return Task.CompletedTask;
     }
 }

@@ -16,5 +16,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Modules\Identity\Okul.Modules.Identity.Domain\Okul.Modules.Identity.Domain.csproj" />
     <ProjectReference Include="..\..\src\Modules\Identity\Okul.Modules.Identity.Application\Okul.Modules.Identity.Application.csproj" />
+    <!-- Spec 0004: the 2FA crypto (AES-GCM, HMAC) is pure — tested here through its interfaces, no database. -->
+    <ProjectReference Include="..\..\src\Modules\Identity\Okul.Modules.Identity.Infrastructure\Okul.Modules.Identity.Infrastructure.csproj" />
   </ItemGroup>
 </Project>

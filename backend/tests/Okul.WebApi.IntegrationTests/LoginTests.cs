@@ -108,7 +108,9 @@ public sealed class LoginTests
             var response = await _api.Testing.CreateClient().PostAsJsonAsync(
                 LoginRoute, new LoginRequest(code, email, _api.SamplePassword, "mobile"), ct);
 
-            response.StatusCode.ShouldBe(HttpStatusCode.OK, $"{code} / {email}");
+            // Spec 0004: the right password of this 2FA account answers with the code step (202), a wrong account 401 (A-1).
+            response.StatusCode.ShouldBe(HttpStatusCode.Accepted, $"{code} / {email}");
+            (await response.Content.ReadFromJsonAsync<LoginStepResponse>(ct))!.Next.ShouldBe("verify");
         }
     }
 
@@ -149,7 +151,12 @@ public sealed class LoginTests
         var again = await web.PostAsJsonAsync(LoginRoute, new LoginRequest(
             InstitutionSampleData.WithoutCampusesCode, IdentitySampleData.OtherKurumAdministrator.Email, _api.SamplePassword, "web"), ct);
 
-        again.StatusCode.ShouldBe(HttpStatusCode.OK);
+        // Spec 0004: the other kurum's administrator has 2FA — the step completes the login (A-1).
+        again.StatusCode.ShouldBe(HttpStatusCode.Accepted);
+        var step = (await again.Content.ReadFromJsonAsync<LoginStepResponse>(ct))!;
+        var verified = await web.PostAsJsonAsync("/api/v1/auth/login/verify", new VerifyLoginRequest(
+            step.Step, null, await _api.AddRecoveryCodeAsync(IdentitySampleData.OtherKurumAdministrator)), ct);
+        verified.StatusCode.ShouldBe(HttpStatusCode.OK);
         (await web.GetFromJsonAsync<InstitutionDto>(MineRoute, ct))!.Id.ShouldBe(InstitutionSampleData.WithoutCampusesId);
     }
 

@@ -217,7 +217,7 @@ public sealed class IdentityPersistenceTests
         services.AddSingleton<ITenantContext>(new FixedTenant(tenant));
         services.AddSingleton<ITenantScope, NoScope>();
         services.AddSingleton(TimeProvider.System);
-        services.AddIdentityInfrastructure(_api.ConnectionString);
+        services.AddIdentityInfrastructure(_api.ConnectionString, new TwoFactorKey(_api.TwoFactorKey));
         return services.BuildServiceProvider();
     }
 
@@ -255,6 +255,9 @@ public sealed class IdentityPersistenceTests
 
         public Task CloseOthersAsync(Guid accountId, Guid keepSessionId, DateTimeOffset now, CancellationToken cancellationToken) =>
             inner.CloseOthersAsync(accountId, keepSessionId, now, cancellationToken);
+
+        public Task<int> CloseAllAsync(Guid accountId, DateTimeOffset now, CancellationToken cancellationToken) =>
+            inner.CloseAllAsync(accountId, now, cancellationToken);
 
         public Task<bool> CloseAsync(Guid sessionId, DateTimeOffset now, CancellationToken cancellationToken) =>
             inner.CloseAsync(sessionId, now, cancellationToken);

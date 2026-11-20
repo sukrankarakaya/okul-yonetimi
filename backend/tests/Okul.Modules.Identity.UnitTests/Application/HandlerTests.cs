@@ -25,7 +25,8 @@ public sealed class HandlerTests
     {
         _accounts = new FakeAccounts(_scope);
         _sessions = new FakeSessions(_scope);
-        _teacherA = Account(TenantA, "ogretmen@okul.test", StaffRoles.Teacher, StaffRoles.Accountant);
+        // Two roles, neither making 2FA mandatory (spec 0004): these tests are about the password and the session (A-1).
+        _teacherA = Account(TenantA, "ogretmen@okul.test", StaffRoles.Teacher, StaffRoles.Guardian);
         Account(TenantB, "baska@okul.test", StaffRoles.Administrator);
         Account(TenantA, "veli@okul.test", StaffRoles.Guardian);
     }
@@ -38,7 +39,7 @@ public sealed class HandlerTests
         result.Status.ShouldBe(LoginStatus.Succeeded);
         result.Session!.TenantId.ShouldBe(TenantA);
         result.Session.AccountId.ShouldBe(_teacherA.Id);
-        result.Session.Roles.ShouldBe([StaffRoles.Teacher, StaffRoles.Accountant]);
+        result.Session.Roles.ShouldBe([StaffRoles.Teacher, StaffRoles.Guardian]);
         result.Session.ExpiresAt.ShouldBe(_clock.GetUtcNow() + Session.MobileLifetime);
         _sessions.All.Single().TenantId.ShouldBe(TenantA);
         _scope.Current.ShouldBeNull();
@@ -178,7 +179,7 @@ public sealed class HandlerTests
     }
 
     private Task<LoginResult> Login(string code, string email, string password, ClientKind client = ClientKind.Web) =>
-        new LoginCommandHandler(_directory, _scope, _accounts, _sessions, _throttles, _hasher, _clock)
+        new LoginCommandHandler(_directory, _scope, _accounts, _sessions, _throttles, _hasher, new FakeChallenges(_scope), _clock)
             .Handle(new LoginCommand(code, email, password, client), TestContext.Current.CancellationToken);
 
     private Task<RefreshResult> Refresh(string? token) =>
@@ -188,7 +189,7 @@ public sealed class HandlerTests
     {
         using (_scope.Begin(session.TenantId))
         {
-            return await new ChangePasswordCommandHandler(_accounts, _sessions, _hasher, _clock)
+            return await new ChangePasswordCommandHandler(_accounts, _sessions, _hasher, _throttles, _clock)
                 .Handle(new ChangePasswordCommand(session.AccountId, session.SessionId, current, next, again), TestContext.Current.CancellationToken);
         }
     }

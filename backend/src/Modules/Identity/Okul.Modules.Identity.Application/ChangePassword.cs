@@ -9,6 +9,9 @@ public enum ChangePasswordStatus
     CurrentPasswordWrong,
     TooShort,
     Mismatch,
+
+    /// <summary>Spec 0004 (B-11): the login lock — wrong current passwords count towards it; while locked nothing changes.</summary>
+    Locked,
 }
 
 /// <summary>
@@ -24,11 +27,13 @@ public sealed class ChangePasswordCommandHandler : IRequestHandler<ChangePasswor
     private readonly IStaffAccountStore _accounts;
     private readonly ISessionStore _sessions;
     private readonly IPasswordHasher _hasher;
+    private readonly ILoginThrottleStore _throttles;
     private readonly TimeProvider _time;
 
     public ChangePasswordCommandHandler(
-        IStaffAccountStore accounts, ISessionStore sessions, IPasswordHasher hasher, TimeProvider time)
+        IStaffAccountStore accounts, ISessionStore sessions, IPasswordHasher hasher, ILoginThrottleStore throttles, TimeProvider time)
     {
+        _throttles = throttles;
         _accounts = accounts;
         _sessions = sessions;
         _hasher = hasher;
@@ -40,8 +45,18 @@ public sealed class ChangePasswordCommandHandler : IRequestHandler<ChangePasswor
         var account = await _accounts.FindByIdAsync(request.AccountId, cancellationToken)
             ?? throw new InvalidOperationException("The signed-in account was not found in its own tenant.");
 
+        // B-11 (spec 0004, Requirement 6): the same kurum + e-posta count as the login — a stolen session cannot guess the
+        // password unlimited; while locked even the right current password changes nothing.
+        var now = _time.GetUtcNow();
+        var key = TwoFactorLoginServices.ThrottleKey(account);
+        if ((await _throttles.FindAsync(key, cancellationToken))?.IsLocked(now) == true)
+        {
+            return ChangePasswordStatus.Locked;
+        }
+
         if (!_hasher.Verify(account.PasswordHash, request.CurrentPassword ?? string.Empty))
         {
+            await _throttles.UpdateAsync(key, throttle => throttle.RegisterFailure(now), cancellationToken);
             return ChangePasswordStatus.CurrentPasswordWrong;
         }
 
@@ -57,7 +72,7 @@ public sealed class ChangePasswordCommandHandler : IRequestHandler<ChangePasswor
 
         account.ChangePasswordHash(_hasher.Hash(request.NewPassword!));
         await _accounts.SaveChangesAsync(cancellationToken);
-        await _sessions.CloseOthersAsync(account.Id, request.SessionId, _time.GetUtcNow(), cancellationToken);
+        await _sessions.CloseOthersAsync(account.Id, request.SessionId, now, cancellationToken);
         return ChangePasswordStatus.Changed;
     }
 }

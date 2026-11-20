@@ -32,6 +32,7 @@ describe('ChangePasswordPage', () => {
     ['mismatch' as const, 'Yeni şifreler eşleşmiyor.'],
     ['currentWrong' as const, 'Mevcut şifre hatalı.'],
     ['network' as const, 'Bağlantı kurulamadı, tekrar deneyin.'],
+    ['locked' as const, 'Çok fazla başarısız deneme. 15 dakika sonra tekrar deneyin.'], // spec 0004, B-11
   ])('shows %s as an announced alert', async (result, text) => {
     const user = userEvent.setup();
     renderPage(result);

@@ -10,6 +10,7 @@ export const texts = {
   campusList: 'Şubeler',
   logout: 'Çıkış yap',
   changePassword: 'Şifremi değiştir',
+  security: 'Güvenlik',
   defaultTitle: 'Okul',
 } as const;
 
@@ -21,11 +22,13 @@ export interface InstitutionPageProps {
   onSessionEnded?: (expired: boolean) => void;
   onLogout?: () => void;
   onChangePassword?: () => void;
+  /** Spec 0004: Güvenlik (2FA). */
+  onSecurity?: () => void;
   /** A one-off message above the page, e.g. "Şifreniz değiştirildi." */
   notice?: string;
 }
 
-export function InstitutionPage({ loadInstitution, onSessionEnded, onLogout, onChangePassword, notice }: InstitutionPageProps) {
+export function InstitutionPage({ loadInstitution, onSessionEnded, onLogout, onChangePassword, onSecurity, notice }: InstitutionPageProps) {
   const [state, setState] = useState<PageState>({ kind: 'loading' });
   const [attempt, setAttempt] = useState(0);
 
@@ -71,6 +74,11 @@ export function InstitutionPage({ loadInstitution, onSessionEnded, onLogout, onC
           {onChangePassword ? (
             <button type="button" onClick={onChangePassword} style={styles.secondary}>
               {texts.changePassword}
+            </button>
+          ) : null}
+          {onSecurity ? (
+            <button type="button" onClick={onSecurity} style={styles.secondary}>
+              {texts.security}
             </button>
           ) : null}
           {onLogout ? (

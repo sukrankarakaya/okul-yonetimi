@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
@@ -37,6 +38,15 @@ public sealed class ApiFixture : IAsyncLifetime
     private TestDatabase? _database;
 
     public byte[] SigningKey { get; } = RandomNumberGenerator.GetBytes(32);
+
+    /// <summary>The 2FA key for this run (spec 0004, plan R2) — every factory shares it, so a secret set up in one is read in another.</summary>
+    public byte[] TwoFactorKey { get; } = RandomNumberGenerator.GetBytes(32);
+
+    /// <summary>
+    /// The authenticator secret of every account the fixture sets 2FA up for (spec 0004, plan R5) — so a test can compute
+    /// a valid code with <see cref="CodeAt"/>.
+    /// </summary>
+    public byte[] TwoFactorSecret { get; } = Totp.NewSecret();
 
     /// <summary>The sample accounts' password for this run.</summary>
     public string SamplePassword { get; } = "ornek-" + Convert.ToHexString(RandomNumberGenerator.GetBytes(12));
@@ -78,7 +88,8 @@ public sealed class ApiFixture : IAsyncLifetime
             var identity = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
             await identity.Database.MigrateAsync();
             await scope.ServiceProvider.GetRequiredService<LoginThrottleDbContext>().Database.MigrateAsync();
-            await IdentitySampleData.SeedAsync(identity, SamplePassword);
+            await IdentitySampleData.SeedAsync(
+                identity, SamplePassword, scope.ServiceProvider.GetRequiredService<ITwoFactorSecretProtector>().Protect(TwoFactorSecret));
         }
         catch
         {
@@ -100,7 +111,7 @@ public sealed class ApiFixture : IAsyncLifetime
     /// <param name="loginsPerMinute">The source login limit (spec 0003, Requirement 4); default out of reach;
     /// <c>null</c> sets nothing, so the production default applies (VERIFY round 1 F-1).</param>
     public OkulApiFactory CreateFactory(string environment, TimeProvider? time = null, int? loginsPerMinute = UnlimitedLoginsPerMinute) =>
-        new(environment, ConnectionString, Convert.ToBase64String(SigningKey), time, loginsPerMinute);
+        new(environment, ConnectionString, Convert.ToBase64String(SigningKey), Convert.ToBase64String(TwoFactorKey), time, loginsPerMinute);
 
     /// <summary>A client signed in through the Testing-only test login (any role, incl. Guardian).</summary>
     public async Task<HttpClient> ClientForAsync(Guid tenantId, string role)
@@ -114,16 +125,16 @@ public sealed class ApiFixture : IAsyncLifetime
         return client;
     }
 
-    /// <summary>A client signed in through the REAL staff login as the mobile app does (bearer) — spec 0003, AC-4.</summary>
+    /// <summary>
+    /// A client signed in through the REAL staff login as the mobile app does (bearer) — spec 0003, AC-4. An account with
+    /// 2FA completes the step with a kurtarma kodu made for this one login (plan 0004, R5): parallel tests logging in the
+    /// same sample account never compete for one 30-second code. The code path itself is proven in the 2FA tests.
+    /// </summary>
     public async Task<(HttpClient Client, SessionResponse Session)> LoginMobileAsync(
         IdentitySampleData.SampleAccount account, OkulApiFactory? factory = null)
     {
         var client = (factory ?? Testing).CreateClient();
-        var response = await client.PostAsJsonAsync("/api/v1/auth/login", new LoginRequest(
-            CodeOf(account), account.Email, SamplePassword, "mobile"));
-        response.EnsureSuccessStatusCode();
-        var session = await response.Content.ReadFromJsonAsync<SessionResponse>();
-        session.ShouldNotBeNull();
+        var session = await LoginAsync(client, account, "mobile", factory);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", session.AccessToken);
         return (client, session);
     }
@@ -132,10 +143,67 @@ public sealed class ApiFixture : IAsyncLifetime
     public async Task<HttpClient> LoginWebAsync(IdentitySampleData.SampleAccount account, OkulApiFactory? factory = null)
     {
         var client = WebClient(factory);
-        var response = await client.PostAsJsonAsync("/api/v1/auth/login", new LoginRequest(
-            CodeOf(account), account.Email, SamplePassword, "web"));
-        response.EnsureSuccessStatusCode();
+        await LoginAsync(client, account, "web", factory);
         return client;
+    }
+
+    private async Task<SessionResponse> LoginAsync(
+        HttpClient client, IdentitySampleData.SampleAccount account, string clientKind, OkulApiFactory? factory)
+    {
+        var response = await client.PostAsJsonAsync("/api/v1/auth/login", new LoginRequest(
+            CodeOf(account), account.Email, SamplePassword, clientKind));
+        response.EnsureSuccessStatusCode();
+        if (response.StatusCode == HttpStatusCode.OK)
+        {
+            return (await response.Content.ReadFromJsonAsync<SessionResponse>()).ShouldNotBeNull();
+        }
+
+        var step = (await response.Content.ReadFromJsonAsync<LoginStepResponse>()).ShouldNotBeNull();
+        step.Next.ShouldBe("verify", "the account has no 2FA set up — use CreateAccountAsync(setUpTwoFactor: true)");
+        var verified = await client.PostAsJsonAsync("/api/v1/auth/login/verify",
+            new VerifyLoginRequest(step.Step, null, await AddRecoveryCodeAsync(account, factory)));
+        verified.EnsureSuccessStatusCode();
+        return (await verified.Content.ReadFromJsonAsync<SessionResponse>()).ShouldNotBeNull();
+    }
+
+    /// <summary>A valid 6-digit code of <see cref="TwoFactorSecret"/> at <paramref name="moment"/> (spec 0004).</summary>
+    public string CodeAt(DateTimeOffset moment) => Totp.Compute(TwoFactorSecret, Totp.StepAt(moment));
+
+    /// <summary>The code an authenticator app shows for a setup <paramref name="base32Key"/> at <paramref name="moment"/>.</summary>
+    public static string CodeFromKey(string base32Key, DateTimeOffset moment)
+    {
+        const string alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+        var bytes = new List<byte>();
+        int buffer = 0, bits = 0;
+        foreach (var c in base32Key)
+        {
+            buffer = (buffer << 5) | alphabet.IndexOf(c, StringComparison.Ordinal);
+            bits += 5;
+            if (bits >= 8)
+            {
+                bytes.Add((byte)(buffer >> (bits - 8)));
+                bits -= 8;
+            }
+        }
+
+        return Totp.Compute(bytes.ToArray(), Totp.StepAt(moment));
+    }
+
+    /// <summary>Adds one unused kurtarma kodu to the account and returns it (test helper; plan 0004, R5).</summary>
+    public async Task<string> AddRecoveryCodeAsync(IdentitySampleData.SampleAccount account, OkulApiFactory? factory = null)
+    {
+        var code = RecoveryCodeFormat.NewSet()[0];
+        await using var scope = (factory ?? Testing).Services.CreateAsyncScope();
+        var provider = scope.ServiceProvider;
+        using (provider.GetRequiredService<ITenantScope>().Begin(account.TenantId))
+        {
+            var db = provider.GetRequiredService<IdentityDbContext>();
+            db.RecoveryCodes.Add(RecoveryCode.Create(Guid.CreateVersion7(), account.TenantId, account.Id,
+                provider.GetRequiredService<IRecoveryCodeHasher>().Hash(RecoveryCodeFormat.Normalize(code)!)));
+            await db.SaveChangesAsync(CancellationToken.None);
+        }
+
+        return code;
     }
 
     /// <summary>The browser stand-in: HTTPS (Secure cookies), a cookie jar, and the CSRF header the web panel sends.</summary>
@@ -167,7 +235,14 @@ public sealed class ApiFixture : IAsyncLifetime
     }
 
     /// <summary>A fresh account (random e-mail, <see cref="SamplePassword"/>) — for tests that lock or change it.</summary>
-    public async Task<IdentitySampleData.SampleAccount> CreateAccountAsync(Guid tenantId, params string[] roles)
+    public Task<IdentitySampleData.SampleAccount> CreateAccountAsync(Guid tenantId, params string[] roles) =>
+        CreateAccountAsync(tenantId, setUpTwoFactor: null, roles);
+
+    /// <param name="setUpTwoFactor">
+    /// Null: set up with <see cref="TwoFactorSecret"/> when the roles make it mandatory (so 0003's tests log in as before);
+    /// false: left without 2FA (setup tests); true: set up whatever the roles (spec 0004).
+    /// </param>
+    public async Task<IdentitySampleData.SampleAccount> CreateAccountAsync(Guid tenantId, bool? setUpTwoFactor, params string[] roles)
     {
         var account = new IdentitySampleData.SampleAccount(
             Guid.CreateVersion7(), tenantId, $"t-{Guid.NewGuid():N}@okul.test", roles.Length == 0 ? [StaffRoles.Teacher] : roles);
@@ -176,10 +251,14 @@ public sealed class ApiFixture : IAsyncLifetime
         using (provider.GetRequiredService<ITenantScope>().Begin(tenantId))
         {
             var accounts = provider.GetRequiredService<IStaffAccountStore>();
-            await accounts.AddAsync(
-                StaffAccount.Create(account.Id, tenantId, account.Email,
-                    provider.GetRequiredService<IPasswordHasher>().Hash(SamplePassword), account.Roles),
-                CancellationToken.None);
+            var created = StaffAccount.Create(account.Id, tenantId, account.Email,
+                provider.GetRequiredService<IPasswordHasher>().Hash(SamplePassword), account.Roles);
+            if (setUpTwoFactor ?? created.TwoFactorRequired)
+            {
+                created.EnableTwoFactor(provider.GetRequiredService<ITwoFactorSecretProtector>().Protect(TwoFactorSecret), confirmedStep: 0);
+            }
+
+            await accounts.AddAsync(created, CancellationToken.None);
             await accounts.SaveChangesAsync(CancellationToken.None);
         }
 
@@ -233,14 +312,17 @@ public sealed class OkulApiFactory : WebApplicationFactory<Program>
     private readonly string _environment;
     private readonly string _connectionString;
     private readonly string _signingKey;
+    private readonly string _twoFactorKey;
     private readonly TimeProvider? _time;
     private readonly int? _loginsPerMinute;
 
-    public OkulApiFactory(string environment, string connectionString, string signingKey, TimeProvider? time, int? loginsPerMinute)
+    public OkulApiFactory(
+        string environment, string connectionString, string signingKey, string twoFactorKey, TimeProvider? time, int? loginsPerMinute)
     {
         _environment = environment;
         _connectionString = connectionString;
         _signingKey = signingKey;
+        _twoFactorKey = twoFactorKey;
         _time = time;
         _loginsPerMinute = loginsPerMinute;
     }
@@ -250,6 +332,7 @@ public sealed class OkulApiFactory : WebApplicationFactory<Program>
         builder.UseEnvironment(_environment);
         builder.UseSetting("ConnectionStrings:Okul", _connectionString);
         builder.UseSetting("Auth:SigningKey", _signingKey);
+        builder.UseSetting("Auth:TwoFactorKey", _twoFactorKey);
         if (_loginsPerMinute is { } loginsPerMinute)
         {
             builder.UseSetting("Auth:LoginRateLimitPerMinute", loginsPerMinute.ToString(System.Globalization.CultureInfo.InvariantCulture));

@@ -16,6 +16,15 @@ public static class StaffRoles
         Administrator, Teacher, Accountant,
     };
 
+    /// <summary>Roles for which two-step verification is mandatory (spec 0004, Requirement 1; docs/security.md).</summary>
+    public static readonly IReadOnlySet<string> TwoFactorMandatory = new HashSet<string>(StringComparer.Ordinal)
+    {
+        Administrator, Accountant,
+    };
+
+    /// <summary>One mandatory role is enough — a Teacher + Accountant account must use it too.</summary>
+    public static bool RequireTwoFactor(IEnumerable<string> roles) => roles.Any(TwoFactorMandatory.Contains);
+
     public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)
     {
         Administrator, Teacher, Accountant, Guardian,

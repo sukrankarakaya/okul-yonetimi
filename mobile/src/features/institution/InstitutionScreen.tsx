@@ -11,6 +11,7 @@ export const texts = {
   campusList: 'Şubeler',
   logout: 'Çıkış yap',
   changePassword: 'Şifremi değiştir',
+  security: 'Güvenlik',
 } as const;
 
 type ScreenState = { kind: 'loading' } | InstitutionResult;
@@ -38,11 +39,13 @@ export interface InstitutionScreenProps {
   onSessionEnded?: (expired: boolean) => void;
   onLogout?: () => void;
   onChangePassword?: () => void;
+  /** Spec 0004: Güvenlik (2FA). */
+  onSecurity?: () => void;
   /** A one-off message, e.g. "Şifreniz değiştirildi." */
   notice?: string;
 }
 
-export function InstitutionScreen({ loadInstitution, onSessionEnded, onLogout, onChangePassword, notice }: InstitutionScreenProps) {
+export function InstitutionScreen({ loadInstitution, onSessionEnded, onLogout, onChangePassword, onSecurity, notice }: InstitutionScreenProps) {
   const [state, setState] = useState<ScreenState>({ kind: 'loading' });
   const [attempt, setAttempt] = useState(0);
 
@@ -140,6 +143,11 @@ export function InstitutionScreen({ loadInstitution, onSessionEnded, onLogout, o
           {onChangePassword ? (
             <Pressable accessibilityRole="button" accessibilityLabel={texts.changePassword} onPress={onChangePassword} style={styles.secondary}>
               <Text style={styles.secondaryText}>{texts.changePassword}</Text>
+            </Pressable>
+          ) : null}
+          {onSecurity ? (
+            <Pressable accessibilityRole="button" accessibilityLabel={texts.security} onPress={onSecurity} style={styles.secondary}>
+              <Text style={styles.secondaryText}>{texts.security}</Text>
             </Pressable>
           ) : null}
           {onLogout ? (

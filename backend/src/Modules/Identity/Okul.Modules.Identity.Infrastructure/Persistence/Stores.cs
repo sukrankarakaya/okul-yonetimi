@@ -24,6 +24,80 @@ internal sealed class StaffAccountStore : IStaffAccountStore
         await _db.StaffAccounts.AddAsync(account, cancellationToken);
 
     public Task SaveChangesAsync(CancellationToken cancellationToken) => _db.SaveChangesAsync(cancellationToken);
+
+    public async Task<bool> TrySaveChangesAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _db.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            _db.ChangeTracker.Clear();
+            return false;
+        }
+    }
+}
+
+internal sealed class LoginChallengeStore : ILoginChallengeStore
+{
+    private readonly IdentityDbContext _db;
+
+    public LoginChallengeStore(IdentityDbContext db)
+    {
+        _db = db;
+    }
+
+    public Task<LoginChallenge?> FindAsync(Guid challengeId, CancellationToken cancellationToken) =>
+        _db.LoginChallenges.SingleOrDefaultAsync(c => c.Id == challengeId, cancellationToken);
+
+    public async Task AddAsync(LoginChallenge challenge, CancellationToken cancellationToken) =>
+        await _db.LoginChallenges.AddAsync(challenge, cancellationToken);
+
+    public async Task<bool> TryEndAsync(Guid challengeId, DateTimeOffset now, CancellationToken cancellationToken) =>
+        await _db.LoginChallenges
+            .Where(c => c.Id == challengeId && c.EndedAt == null)
+            .ExecuteUpdateAsync(set => set.SetProperty(c => c.EndedAt, now), cancellationToken) == 1;
+
+    public Task EndAllAsync(Guid accountId, DateTimeOffset now, CancellationToken cancellationToken) =>
+        _db.LoginChallenges
+            .Where(c => c.AccountId == accountId && c.EndedAt == null)
+            .ExecuteUpdateAsync(set => set.SetProperty(c => c.EndedAt, now), cancellationToken);
+}
+
+internal sealed class RecoveryCodeStore : IRecoveryCodeStore
+{
+    private readonly IdentityDbContext _db;
+
+    public RecoveryCodeStore(IdentityDbContext db)
+    {
+        _db = db;
+    }
+
+    public async Task<IReadOnlyList<RecoveryCode>> ListUnusedAsync(Guid accountId, CancellationToken cancellationToken) =>
+        await _db.RecoveryCodes.Where(c => c.AccountId == accountId && c.UsedAt == null).ToListAsync(cancellationToken);
+
+    public Task<int> CountUnusedAsync(Guid accountId, CancellationToken cancellationToken) =>
+        _db.RecoveryCodes.CountAsync(c => c.AccountId == accountId && c.UsedAt == null, cancellationToken);
+
+    public async Task<bool> TryUseAsync(Guid codeId, DateTimeOffset now, CancellationToken cancellationToken) =>
+        await _db.RecoveryCodes
+            .Where(c => c.Id == codeId && c.UsedAt == null)
+            .ExecuteUpdateAsync(set => set.SetProperty(c => c.UsedAt, now), cancellationToken) == 1;
+
+    /// <summary>Tracked: removal and insert go out with the caller's SaveChanges — one transaction with the account.</summary>
+    public async Task ReplaceAsync(Guid tenantId, Guid accountId, IEnumerable<string> codeHashes, CancellationToken cancellationToken)
+    {
+        _db.RecoveryCodes.RemoveRange(await _db.RecoveryCodes.Where(c => c.AccountId == accountId).ToListAsync(cancellationToken));
+        foreach (var hash in codeHashes)
+        {
+            await _db.RecoveryCodes.AddAsync(RecoveryCode.Create(Guid.CreateVersion7(), tenantId, accountId, hash), cancellationToken);
+        }
+    }
+
+    public Task DeleteAllAsync(Guid accountId, CancellationToken cancellationToken) =>
+        _db.RecoveryCodes.Where(c => c.AccountId == accountId).ExecuteDeleteAsync(cancellationToken);
 }
 
 internal sealed class SessionStore : ISessionStore
@@ -45,6 +119,11 @@ internal sealed class SessionStore : ISessionStore
     public Task CloseOthersAsync(Guid accountId, Guid keepSessionId, DateTimeOffset now, CancellationToken cancellationToken) =>
         _db.Sessions
             .Where(s => s.AccountId == accountId && s.Id != keepSessionId && s.ClosedAt == null)
+            .ExecuteUpdateAsync(set => set.SetProperty(s => s.ClosedAt, now), cancellationToken);
+
+    public Task<int> CloseAllAsync(Guid accountId, DateTimeOffset now, CancellationToken cancellationToken) =>
+        _db.Sessions
+            .Where(s => s.AccountId == accountId && s.ClosedAt == null)
             .ExecuteUpdateAsync(set => set.SetProperty(s => s.ClosedAt, now), cancellationToken);
 
     public async Task<bool> CloseAsync(Guid sessionId, DateTimeOffset now, CancellationToken cancellationToken) =>

@@ -20,14 +20,18 @@
 - Fast/full ayrımı **seçiciyle** (Microsoft.Testing.Platform): `--filter-not-trait "Category=Integration"` (fast) ve
   `--filter-trait "Category=Integration"` (full). `--ignore-exit-code 8` yalnızca "bu test uygulaması sıfır test
   çalıştırdı" kodunu yok sayar (her proje diğer profilin testlerini içermez); toplam sayı çıktıda görünür.
-- Test sayıları (spec 0003 BUILD + spec 0002 merge sonrası): backend fast 132 (Kurum birim 32 + Kimlik birim 44 +
-  WebApi/Core birim 8 + test veritabanı yardımcıları 31 + mimari 17), entegrasyon 68, web 41, mobil 34 (spec 0003 ship). WebApi/Core ve
+- Test sayıları (spec 0004 VERIFY): backend fast 172 (Kurum birim 32 + Kimlik birim 84 + WebApi/Core birim 8 + test
+  veritabanı yardımcıları 31 + mimari 17), entegrasyon 107, web 86, mobil 53. WebApi/Core ve
   test veritabanı birim testleri: `backend/tests/Okul.WebApi.UnitTests`. **Entegrasyon projesine trait'siz test konmaz**
   (T-13: assembly fixture'ı her test için kurulur, fast profil veritabanı açar).
 - Kimlik entegrasyon testleri gerçek girişle oturum açar (`ApiFixture.LoginMobileAsync` / `LoginWebAsync`); örnek hesap
   parolası her koşuda rastgele. Hesabı kilitleyen veya değiştiren testler kendi hesabını açar (`CreateAccountAsync`),
   örnek hesaplara dokunmaz. Saat gerektiren testler (`LockoutAndRateLimitTests`, `SessionLifetimeTests`) kendi
   factory'lerini `FakeTimeProvider` ile kurar; rate limit testi kendi limitini verir (varsayılan factory'de sınır yok).
+- **2FA test yardımcıları (spec 0004, plan R5):** `ApiFixture` zorunlu örnek hesapları bilinen bir anahtarla 2FA'lı
+  tohumlar; `LoginWebAsync` / `LoginMobileAsync` ara adımı **o girişe özel eklenen bir kurtarma koduyla** tamamlar (paralel
+  testler aynı 30 sn kodu için yarışmaz). TOTP yolu 2FA testlerinde taze hesaplarla (`CreateAccountAsync(setUpTwoFactor)`)
+  ve `FakeTimeProvider` + `CodeAt` / `CodeFromKey` ile kanıtlanır.
 - Süreler (spec 0001, A-4 sonrası, bu makine): fast ≈ 80 s (8 adım), full ≈ 125–190 s (temiz kurulum sonrası soğuk ilk koşu ≈ 190 s). Fast'te tam `dotnet format` yok —
   biçim (IDE0055) derlemede zorunlu; `using` sırası full'deki `backend-format`'ta. ESLint `--cache` ve `tsc --incremental`
   önbellekleri `node_modules/.cache/` altında (ilk çalıştırma soğuk). Proje `C:\dev\okul-yonetimi`'de (OneDrive senkronu

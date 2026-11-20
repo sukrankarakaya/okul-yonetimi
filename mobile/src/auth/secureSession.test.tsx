@@ -1,5 +1,6 @@
 import { createOkulClient } from '@okul/api-client';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { AccessibilityInfo } from 'react-native';
 import App from '../../App';
 import { secureTokenStore, type SecureStorage } from './secureSession';
 
@@ -82,7 +83,7 @@ describe('secure session (mobile)', () => {
     [400, 'current_password_wrong', 'currentWrong'],
     [500, undefined, 'network'],
     [403, undefined, 'network'],
-    [429, undefined, 'network'],
+    [429, undefined, 'locked'], // spec 0004 (B-11): wrong current passwords lock like the login (A-2)
   ])('change password maps HTTP %i (code %s) to %s (VERIFY round 1 F-2)', async (status, code, result) => {
     const storage = memoryStorage();
     await storage.setItemAsync('okul.session', JSON.stringify({ accessToken: 'access-1', refreshToken: 'refresh-1' }));
@@ -91,6 +92,50 @@ describe('secure session (mobile)', () => {
 
     expect(await client.changePassword('eski-sifre-123', 'yeni-sifre-1234', 'yeni-sifre-1234')).toBe(result);
     expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('a completed 2FA step keeps the tokens in the secure store, never the step itself (spec 0004)', async () => {
+    const storage = memoryStorage();
+    const fetch = jest.fn(async (input: RequestInfo | URL) => {
+      const url = (input as Request).url;
+      return url.endsWith('/auth/login') ? json(202, { next: 'verify', step: 't.s.secret', stepExpiresAt: '2026-11-20T10:05:00Z' }) : json(200, session);
+    });
+    const client = createOkulClient({ baseUrl: 'http://api.test', kind: 'mobile', tokenStore: secureTokenStore(storage), fetch });
+
+    expect(await client.login('ATATURK-IST', 'a@b.test', 'dogru-sifre-123')).toEqual({ kind: 'verify', step: 't.s.secret' });
+    expect(storage.items.size).toBe(0);
+    expect((await client.verifyLogin('t.s.secret', '123456')).kind).toBe('ok');
+    expect(JSON.parse(storage.items.get('okul.session')!)).toEqual({ accessToken: 'access-1', refreshToken: 'refresh-1' });
+  });
+
+  it('app: right password → Doğrulama → code → Kurum bilgisi with Güvenlik; kurum kodu and e-posta remembered (spec 0004)', async () => {
+    const storage = memoryStorage();
+    const hints = memoryStorage();
+    const responses = [
+      json(202, { next: 'verify', step: 't.s.secret', stepExpiresAt: '2026-11-20T10:05:00Z' }),
+      json(200, session),
+      json(200, { id: 'k1', name: 'Atatürk Koleji', campuses: [] }),
+    ];
+    const fetch = jest.fn(async () => responses.shift()!);
+    const client = createOkulClient({ baseUrl: 'http://api.test', kind: 'mobile', tokenStore: secureTokenStore(storage), fetch });
+    const loginHint = {
+      read: async () => ({ institutionCode: 'ATATURK-IST', email: 'yonetici@ataturk.test' }),
+      write: async (h: object) => hints.setItemAsync('hint', JSON.stringify(h)),
+    };
+    jest.spyOn(AccessibilityInfo, 'announceForAccessibility').mockImplementation(() => undefined);
+
+    await render(<App client={client} loginHint={loginHint} />);
+    await fireEvent.changeText(await screen.findByLabelText('Şifre'), 'dogru-sifre-123');
+    await fireEvent.press(screen.getByRole('button', { name: 'Giriş yap' }));
+    expect(await screen.findByRole('header', { name: 'İki adımlı doğrulama' })).toBeOnTheScreen();
+    expect(storage.items.size).toBe(0); // the step is not a session
+    await fireEvent.changeText(screen.getByLabelText('Doğrulama kodu'), '123456');
+    await fireEvent.press(screen.getByRole('button', { name: 'Doğrula' }));
+
+    expect(await screen.findByRole('header', { name: 'Atatürk Koleji' })).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Güvenlik' })).toBeOnTheScreen();
+    expect(JSON.parse(storage.items.get('okul.session')!)).toEqual({ accessToken: 'access-1', refreshToken: 'refresh-1' });
+    expect(hints.items.get('hint')).toContain('ATATURK-IST');
   });
 
   it('logout clears the secure store', async () => {

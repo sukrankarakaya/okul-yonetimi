@@ -82,6 +82,87 @@ describe('App (web)', () => {
   });
 });
 
+describe('App (web) — spec 0004 two-step login', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+
+  async function signIn(user: ReturnType<typeof userEvent.setup>) {
+    await user.type(await screen.findByLabelText('Kurum kodu'), 'ATATURK-IST');
+    await user.type(screen.getByLabelText('E-posta'), 'yonetici@ataturk.test');
+    await user.type(screen.getByLabelText('Şifre'), 'dogru-sifre-123');
+    await user.click(screen.getByRole('button', { name: 'Giriş yap' }));
+  }
+
+  it('right password → Doğrulama → code → Kurum bilgisi (with Güvenlik); nothing in browser storage', async () => {
+    const user = userEvent.setup();
+    const { fetch, calls } = backend({
+      'GET /api/v1/auth/session': [() => json(401)],
+      'POST /api/v1/auth/refresh': [() => json(401)],
+      'POST /api/v1/auth/login': [() => json(202, { next: 'verify', step: 't.s.secret', stepExpiresAt: '2026-11-20T10:05:00Z' })],
+      'POST /api/v1/auth/login/verify': [() => json(200, session)],
+      'GET /api/v1/institution/me': [() => json(200, institution)],
+    });
+    render(<App client={createOkulClient({ baseUrl: 'http://api.test', kind: 'web', fetch })} />);
+
+    await signIn(user);
+    expect(await screen.findByRole('heading', { name: 'İki adımlı doğrulama' })).toBeInTheDocument();
+    await user.type(screen.getByLabelText('Doğrulama kodu'), '123456{Enter}');
+
+    expect(await screen.findByRole('heading', { name: 'Atatürk Koleji' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Güvenlik' })).toBeInTheDocument();
+    expect(calls).toContain('POST /api/v1/auth/login/verify');
+    expect([localStorage.length, sessionStorage.length]).toEqual([0, 0]);
+  });
+
+  it('an expired step returns to Giriş with "Doğrulama süresi doldu, tekrar giriş yapın."; "Vazgeç" ends the step', async () => {
+    const user = userEvent.setup();
+    const { fetch, calls } = backend({
+      'GET /api/v1/auth/session': [() => json(401)],
+      'POST /api/v1/auth/refresh': [() => json(401)],
+      'POST /api/v1/auth/login': [
+        () => json(202, { next: 'verify', step: 't.s.one', stepExpiresAt: '2026-11-20T10:05:00Z' }),
+        () => json(202, { next: 'verify', step: 't.s.two', stepExpiresAt: '2026-11-20T10:05:00Z' }),
+      ],
+      'POST /api/v1/auth/login/verify': [() => json(401, { code: 'step_ended' })],
+      'POST /api/v1/auth/login/cancel': [() => json(204)],
+    });
+    render(<App client={createOkulClient({ baseUrl: 'http://api.test', kind: 'web', fetch })} />);
+
+    await signIn(user);
+    await user.type(await screen.findByLabelText('Doğrulama kodu'), '123456{Enter}');
+    expect(await screen.findByText('Doğrulama süresi doldu, tekrar giriş yapın.')).toBeInTheDocument();
+
+    await signIn(user);
+    await user.click(await screen.findByRole('button', { name: 'Vazgeç' }));
+    expect(await screen.findByRole('heading', { name: 'Giriş' })).toBeInTheDocument();
+    expect(calls).toContain('POST /api/v1/auth/login/cancel');
+  });
+
+  it('mandatory first login: Kurulum → Kurtarma kodları → Kurum bilgisi', async () => {
+    const user = userEvent.setup();
+    const { fetch } = backend({
+      'GET /api/v1/auth/session': [() => json(401)],
+      'POST /api/v1/auth/refresh': [() => json(401)],
+      'POST /api/v1/auth/login': [() => json(202, { next: 'setup', step: 't.s.secret', stepExpiresAt: '2026-11-20T10:05:00Z' })],
+      'POST /api/v1/auth/login/setup': [() => json(200, { key: 'JBSWY3DPEHPK3PXP', qrCode: 'data:image/png;base64,iVBORw0KGgo=' })],
+      'POST /api/v1/auth/login/setup/confirm': [() => json(200, { session, recoveryCodes: ['K7Q2-9XMD', 'P4TR-2HWA'] })],
+      'GET /api/v1/institution/me': [() => json(200, institution)],
+    });
+    render(<App client={createOkulClient({ baseUrl: 'http://api.test', kind: 'web', fetch })} />);
+
+    await signIn(user);
+    expect(await screen.findByText('JBSWY3DPEHPK3PXP')).toBeInTheDocument();
+    await user.type(screen.getByLabelText('Doğrulama kodu'), '123456{Enter}');
+    expect(await screen.findByRole('heading', { name: 'Kurtarma kodlarınız' })).toBeInTheDocument();
+    expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual(['K7Q2-9XMD', 'P4TR-2HWA']);
+    await user.click(screen.getByRole('button', { name: 'Kaydettim, devam et' }));
+
+    expect(await screen.findByRole('heading', { name: 'Atatürk Koleji' })).toBeInTheDocument();
+  });
+});
+
 describe('api-client login answers', () => {
   it.each([
     [401, 'invalid'],
@@ -103,7 +184,7 @@ describe('api-client login answers', () => {
     [400, undefined, 'network'],
     [500, undefined, 'network'],
     [403, undefined, 'network'],
-    [429, undefined, 'network'],
+    [429, undefined, 'locked'], // spec 0004 (B-11): wrong current passwords lock like the login (A-2)
   ])('change password maps HTTP %i (code %s) to %s (VERIFY round 1 F-2)', async (status, code, result) => {
     const { fetch } = backend({ 'POST /api/v1/auth/password': [() => json(status, { detail: 'x', code })] });
     const client = createOkulClient({ baseUrl: 'http://api.test', kind: 'web', fetch });
@@ -153,5 +234,83 @@ describe('api-client session renewal', () => {
     const client = createOkulClient({ baseUrl: 'http://api.test', kind: 'web', fetch });
 
     expect((await client.getMyInstitution()).kind).toBe('ok');
+  });
+});
+
+/** Spec 0004 — the api-client's 2FA answers: only the API's own codes are the user's; anything else is "Bağlantı kurulamadı". */
+describe('api-client two-step login', () => {
+  const step = 'tenant.step.secret';
+  const client = (routes: Record<string, (() => Response)[]>) =>
+    createOkulClient({ baseUrl: 'http://api.test', kind: 'web', fetch: backend(routes).fetch });
+
+  it.each([
+    ['verify', { kind: 'verify', step }],
+    ['setup', { kind: 'setup', step }],
+  ])('login answers 202 %s with the step', async (next, expected) => {
+    const c = client({ 'POST /api/v1/auth/login': [() => json(202, { next, step, stepExpiresAt: '2026-11-20T10:05:00Z' })] });
+
+    expect(await c.login('ATATURK-IST', 'a@b.test', 'dogru-sifre-123')).toEqual(expected);
+  });
+
+  it.each([
+    [200, session, 'ok'],
+    [401, { code: 'invalid_code' }, 'invalidCode'],
+    [401, { code: 'step_ended' }, 'stepEnded'],
+    [429, { code: 'too_many_attempts' }, 'locked'],
+    [500, undefined, 'network'],
+    [401, undefined, 'network'],
+  ])('verify maps HTTP %i (%o) to %s, by code and by recovery code', async (status, body, kind) => {
+    const c = client({ 'POST /api/v1/auth/login/verify': [() => json(status, body), () => json(status, body)] });
+
+    expect((await c.verifyLogin(step, '123456')).kind).toBe(kind);
+    expect((await c.verifyWithRecoveryCode(step, 'K7Q2-9XMD')).kind).toBe(kind);
+  });
+
+  it('setup: starts with the key and QR, confirms with the recovery codes, or reports the ended step', async () => {
+    const c = client({
+      'POST /api/v1/auth/login/setup': [() => json(200, { key: 'JBSWY3DP', qrCode: 'data:image/png;base64,AA' }), () => json(401, { code: 'step_ended' })],
+      'POST /api/v1/auth/login/setup/confirm': [() => json(200, { session, recoveryCodes: ['K7Q2-9XMD'] }), () => json(401, { code: 'invalid_code' })],
+    });
+
+    expect(await c.startSetup(step)).toEqual({ kind: 'ok', key: 'JBSWY3DP', qrCode: 'data:image/png;base64,AA' });
+    expect(await c.startSetup(step)).toEqual({ kind: 'stepEnded' });
+    expect(await c.confirmSetup(step, '123456')).toEqual({ kind: 'ok', roles: ['Teacher'], recoveryCodes: ['K7Q2-9XMD'] });
+    expect((await c.confirmSetup(step, '000000')).kind).toBe('invalidCode');
+  });
+
+  it('cancel never fails, even when the server is unreachable', async () => {
+    const c = createOkulClient({ baseUrl: 'http://api.test', kind: 'web', fetch: vi.fn(async () => { throw new TypeError('offline'); }) });
+
+    await expect(c.cancelLogin(step)).resolves.toBeUndefined();
+  });
+
+  it.each([
+    [204, undefined, { kind: 'ok' }],
+    [200, { recoveryCodes: ['K7Q2-9XMD'] }, { kind: 'ok', recoveryCodes: ['K7Q2-9XMD'] }],
+    [400, { code: 'invalid_code' }, { kind: 'invalidCode' }],
+    [403, { code: 'two_factor_mandatory' }, { kind: 'notAllowed' }],
+    [429, { code: 'too_many_attempts' }, { kind: 'locked' }],
+    [502, undefined, { kind: 'network' }],
+  ])('Güvenlik changes map HTTP %i to %o', async (status, body, expected) => {
+    const c = client({ 'POST /api/v1/auth/two-factor/disable': [() => json(status, body)] });
+
+    expect(await c.disableTwoFactor('123456')).toEqual(expected);
+  });
+
+  it('enable answers 409 as "already on", not as a connection error (review round 1 I-1)', async () => {
+    const c = client({ 'POST /api/v1/auth/two-factor/enable': [() => json(409, { code: 'two_factor_enabled' })] });
+
+    expect(await c.startEnableTwoFactor()).toEqual({ kind: 'alreadyEnabled' });
+  });
+
+  it('reads the Güvenlik status, and reports an ended session', async () => {
+    const status = { enabled: true, required: true, canDisable: false, remainingRecoveryCodes: 3 };
+    const c = client({
+      'GET /api/v1/auth/two-factor': [() => json(200, status), () => json(401)],
+      'POST /api/v1/auth/refresh': [() => json(401)],
+    });
+
+    expect(await c.getTwoFactor()).toEqual({ kind: 'ok', status });
+    expect(await c.getTwoFactor()).toEqual({ kind: 'unauthenticated' });
   });
 });

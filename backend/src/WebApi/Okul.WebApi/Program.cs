@@ -86,7 +86,8 @@ services.AddMediator(configuration => configuration.RegisterServicesFromAssembli
     InstitutionApplicationAssembly.Assembly, IdentityApplicationAssembly.Assembly));
 var connectionString = builder.Configuration.GetConnectionString("Okul");
 services.AddInstitutionInfrastructure(connectionString ?? string.Empty);
-services.AddIdentityInfrastructure(connectionString ?? string.Empty);
+services.AddIdentityInfrastructure(
+    connectionString ?? string.Empty, TwoFactorKeyFromConfiguration(builder.Configuration, builder.Environment));
 
 // Development with a configured database only (user-secrets); build-time OpenAPI generation has none.
 if (builder.Environment.IsDevelopment() && !string.IsNullOrWhiteSpace(connectionString))
@@ -106,6 +107,11 @@ var app = builder.Build();
 if (args.FirstOrDefault() == CreateAdminCommand.Name)
 {
     return await CreateAdminCommand.RunAsync(app.Services, args, Console.In, Console.Out);
+}
+
+if (args.FirstOrDefault() == ResetTwoFactorCommand.Name)
+{
+    return await ResetTwoFactorCommand.RunAsync(app.Services, args, Console.Out);
 }
 
 app.UseExceptionHandler();
@@ -128,6 +134,27 @@ app.MapDevAuth(app.Environment);
 
 await app.RunAsync();
 return 0;
+
+/// <summary>
+/// <c>Auth:TwoFactorKey</c> (base64, 32 bytes — spec 0004, plan R2), like <c>Auth:SigningKey</c>. Missing: Development and
+/// Testing get an ephemeral key (2FA set up there does not survive a restart); any other environment refuses to start —
+/// a lost key would lock every mandatory account out.
+/// </summary>
+static TwoFactorKey TwoFactorKeyFromConfiguration(IConfiguration configuration, IHostEnvironment environment)
+{
+    var configured = configuration["Auth:TwoFactorKey"];
+    if (!string.IsNullOrWhiteSpace(configured))
+    {
+        return new TwoFactorKey(Convert.FromBase64String(configured));
+    }
+
+    if (DevAuthEndpoints.IsAllowedIn(environment))
+    {
+        return new TwoFactorKey(System.Security.Cryptography.RandomNumberGenerator.GetBytes(TwoFactorKey.Length));
+    }
+
+    throw new InvalidOperationException("Auth:TwoFactorKey is not configured.");
+}
 
 /// <summary>Entry point marker for WebApplicationFactory (integration tests).</summary>
 public partial class Program;

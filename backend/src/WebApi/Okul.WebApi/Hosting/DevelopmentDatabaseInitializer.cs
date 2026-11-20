@@ -31,7 +31,7 @@ internal sealed class DevelopmentDatabaseInitializer : IHostedService
         var samplePassword = _configuration["Dev:SamplePassword"];
         if (!string.IsNullOrWhiteSpace(samplePassword))
         {
-            await IdentitySampleData.SeedAsync(scope.ServiceProvider.GetRequiredService<IdentityDbContext>(), samplePassword, cancellationToken);
+            await IdentitySampleData.SeedAsync(scope.ServiceProvider.GetRequiredService<IdentityDbContext>(), samplePassword, cancellationToken: cancellationToken);
         }
     }
 

@@ -22,12 +22,14 @@ type Field = 'code' | 'email' | 'password';
 export interface LoginScreenProps {
   login: (institutionCode: string, email: string, password: string) => Promise<LoginResult>;
   onLoggedIn: (institutionCode: string, email: string) => void;
+  /** Spec 0004: the password was right; Doğrulama or Kurulum follows (the fields are remembered as for a login). */
+  onStep?: (next: 'verify' | 'setup', step: string, institutionCode: string, email: string) => void;
   notice?: string;
   initialCode?: string;
   initialEmail?: string;
 }
 
-export function LoginScreen({ login, onLoggedIn, notice, initialCode = '', initialEmail = '' }: LoginScreenProps) {
+export function LoginScreen({ login, onLoggedIn, onStep, notice, initialCode = '', initialEmail = '' }: LoginScreenProps) {
   const [values, setValues] = useState<Record<Field, string>>({ code: initialCode, email: initialEmail, password: '' });
   const [missing, setMissing] = useState<Field[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +60,10 @@ export function LoginScreen({ login, onLoggedIn, notice, initialCode = '', initi
     switch (result.kind) {
       case 'ok':
         onLoggedIn(values.code.trim(), values.email.trim());
+        return;
+      case 'verify':
+      case 'setup':
+        onStep?.(result.kind, result.step, values.code.trim(), values.email.trim());
         return;
       case 'invalid':
         setValues((v) => ({ ...v, password: '' }));

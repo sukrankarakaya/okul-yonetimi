@@ -71,7 +71,7 @@ step 7). Nothing lands here without that decision; noise is rejected in the tria
   Source: spec 0002, VERIFY bulgu 1 — Severity: low — Recommendation: `VerifyServerAsync`'in sonucu işlediğini sınayan
   bir ek nokta + test; davranış bugün gözlemle kanıtlı (collation adı değişince testler koşmadan açık mesajla düşer) —
   Deferred by: kullanıcı, 2026-11-19, VERIFY triage
-- **B-11** — Şifre değiştirmede "mevcut şifre" denemeleri sınırsız: ele geçirilmiş bir oturumla şifre kilitlenmeden tahmin
+- **B-11** — **Kapandı (spec 0004, 2026-11-20):** yanlış mevcut şifre giriş kilidine bağlandı, kilitliyken 429 ve "Çok fazla başarısız deneme…" — Şifre değiştirmede "mevcut şifre" denemeleri sınırsız: ele geçirilmiş bir oturumla şifre kilitlenmeden tahmin
   edilip değiştirilebilir — Source: spec 0003, review round 1 #4 (`Okul.Modules.Identity.Application/ChangePassword.cs`,
   `/auth/password`) — Severity: medium — Recommendation: mevcut şifre doğrulaması giriş kilidine (kurum + e-posta anahtarı)
   bağlansın, kilitliyken 429 + "Çok fazla başarısız deneme…" (yeni ekran durumu → spec değişikliği); spec 0004 (2FA) ile —
@@ -90,3 +90,6 @@ step 7). Nothing lands here without that decision; noise is rejected in the tria
 - **B-15** — bash 3.2 regresyonu Linux CI'da yakalanmaz (ubuntu'da `/bin/sh` dash, bash 5) — Source: B-14 review
   (`.github/workflows/check.yml`) — Severity: low — Recommendation: CI'a geçiş kararıyla (B-1) birlikte `macos-latest`
   üzerinde `/bin/sh -n scripts/*` adımı; Mac'te `./scripts/selftest` bugün koruyor — Deferred by: kullanıcı, 2026-11-20, triage
+- **B-16** — Mobil Kurulum ekranında 2FA anahtarı satır ortasında kırılıyor (okunurluk; "Kopyala" var) — Source: spec 0004,
+  VERIFY round 1 #3 (`mobile/src/features/login/SetupStep.tsx`) — Severity: info — Recommendation: anahtarı 4'lü gruplarla
+  ve satır kırılmadan göster — Deferred by: kullanıcı, 2026-11-20, triage

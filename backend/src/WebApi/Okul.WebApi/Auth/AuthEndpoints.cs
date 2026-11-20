@@ -23,6 +23,9 @@ public static class AuthEndpoints
     public const string CurrentPasswordWrongMessage = "Mevcut şifre hatalı.";
     public const string PasswordTooShortMessage = "Yeni şifre en az 10 karakter olmalı.";
     public const string PasswordMismatchMessage = "Yeni şifreler eşleşmiyor.";
+    public const string InvalidCodeMessage = "Kod hatalı veya süresi geçmiş.";
+    public const string StepEndedMessage = "Doğrulama süresi doldu, tekrar giriş yapın.";
+    public const string TwoFactorMandatoryMessage = "Rolünüz gereği zorunlu.";
 
     /// <summary>The routes that run BEFORE a session exists; no credential is read on them.</summary>
     public static bool IsPreSessionPath(PathString path) =>
@@ -38,9 +41,41 @@ public static class AuthEndpoints
             .RequireRateLimiting(LoginRateLimitPolicy)
             .WithName("Login")
             .Produces<SessionResponse>()
+            .Produces<LoginStepResponse>(StatusCodes.Status202Accepted)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status429TooManyRequests);
+
+        // Spec 0004 — the step between a correct password and a session. Anonymous like the login (no credential is read,
+        // IsPreSessionPath), under the same source limit (self-critique G2).
+        auth.MapPost("/login/verify", VerifyLoginAsync)
+            .AllowAnonymous()
+            .RequireRateLimiting(LoginRateLimitPolicy)
+            .WithName("VerifyLogin")
+            .Produces<SessionResponse>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
+
+        auth.MapPost("/login/setup", StartSetupAsync)
+            .AllowAnonymous()
+            .RequireRateLimiting(LoginRateLimitPolicy)
+            .WithName("StartTwoFactorSetup")
+            .Produces<TwoFactorSetupResponse>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
+
+        auth.MapPost("/login/setup/confirm", ConfirmSetupAsync)
+            .AllowAnonymous()
+            .RequireRateLimiting(LoginRateLimitPolicy)
+            .WithName("ConfirmTwoFactorSetup")
+            .Produces<SetupCompletedResponse>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
+
+        auth.MapPost("/login/cancel", CancelLoginAsync)
+            .AllowAnonymous()
+            .RequireRateLimiting(LoginRateLimitPolicy)
+            .WithName("CancelLogin")
+            .Produces(StatusCodes.Status204NoContent);
 
         auth.MapPost("/refresh", RefreshAsync)
             .AllowAnonymous()
@@ -60,7 +95,86 @@ public static class AuthEndpoints
         auth.MapPost("/password", ChangePasswordAsync)
             .WithName("ChangePassword")
             .Produces(StatusCodes.Status204NoContent)
-            .ProducesProblem(StatusCodes.Status400BadRequest);
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
+
+        // Spec 0004 — Güvenlik (signed in; the default policy requires a session).
+        var twoFactor = auth.MapGroup("/two-factor");
+        twoFactor.MapGet("", GetTwoFactorAsync).WithName("GetTwoFactor").Produces<TwoFactorStatusResponse>();
+        twoFactor.MapPost("/enable", StartEnableAsync)
+            .WithName("StartEnableTwoFactor")
+            .Produces<TwoFactorEnableResponse>()
+            .ProducesProblem(StatusCodes.Status409Conflict);
+        twoFactor.MapPost("/enable/confirm", ConfirmEnableAsync)
+            .WithName("ConfirmEnableTwoFactor")
+            .Produces<RecoveryCodesResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
+        twoFactor.MapPost("/disable", DisableAsync)
+            .WithName("DisableTwoFactor")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
+        twoFactor.MapPost("/recovery-codes", RenewRecoveryCodesAsync)
+            .WithName("RenewRecoveryCodes")
+            .Produces<RecoveryCodesResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
+    }
+
+    private static async Task<Ok<TwoFactorStatusResponse>> GetTwoFactorAsync(
+        ClaimsPrincipal user, ISender sender, CancellationToken cancellationToken)
+    {
+        var status = await sender.Send(new GetTwoFactorStatusQuery(ClaimGuid(user, OkulClaims.Subject)), cancellationToken);
+        return TypedResults.Ok(new TwoFactorStatusResponse(status.Enabled, status.Required, status.CanDisable, status.RemainingRecoveryCodes));
+    }
+
+    private static async Task<IResult> StartEnableAsync(
+        ClaimsPrincipal user, ISender sender, HttpResponse response, CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new StartEnableTwoFactorCommand(ClaimGuid(user, OkulClaims.Subject)), cancellationToken);
+        if (!result.Started)
+        {
+            return Problem(409, "Zaten açık", "İki adımlı doğrulama zaten açık.", "two_factor_enabled");
+        }
+
+        response.Headers.CacheControl = "no-store";
+        return Results.Ok(new TwoFactorEnableResponse(result.Step!, result.Key!, QrCodes.PngDataUri(result.ProvisioningUri!)));
+    }
+
+    private static async Task<IResult> ConfirmEnableAsync(
+        VerifyLoginRequest request, ClaimsPrincipal user, ISender sender, HttpResponse response, CancellationToken cancellationToken) =>
+        ChangeAnswer(await sender.Send(
+            new ConfirmEnableTwoFactorCommand(ClaimGuid(user, OkulClaims.Subject), request.Step, request.Code), cancellationToken), response);
+
+    private static async Task<IResult> DisableAsync(
+        TwoFactorCodeRequest request, ClaimsPrincipal user, ISender sender, HttpResponse response, CancellationToken cancellationToken) =>
+        ChangeAnswer(await sender.Send(new DisableTwoFactorCommand(ClaimGuid(user, OkulClaims.Subject), request.Code), cancellationToken), response);
+
+    private static async Task<IResult> RenewRecoveryCodesAsync(
+        TwoFactorCodeRequest request, ClaimsPrincipal user, ISender sender, HttpResponse response, CancellationToken cancellationToken) =>
+        ChangeAnswer(await sender.Send(new RenewRecoveryCodesCommand(ClaimGuid(user, OkulClaims.Subject), request.Code), cancellationToken), response);
+
+    /// <summary>A wrong code is 400 here, not 401: the session is valid, only the code is not.</summary>
+    private static IResult ChangeAnswer(TwoFactorChangeResult result, HttpResponse response)
+    {
+        switch (result.Status)
+        {
+            case TwoFactorChangeStatus.Succeeded when result.RecoveryCodes is { } codes:
+                response.Headers.CacheControl = "no-store";
+                return Results.Ok(new RecoveryCodesResponse(codes));
+            case TwoFactorChangeStatus.Succeeded:
+                return Results.NoContent();
+            case TwoFactorChangeStatus.Locked:
+                return TooManyAttempts();
+            case TwoFactorChangeStatus.NotAllowed:
+                return Problem(403, "İzin verilmiyor", TwoFactorMandatoryMessage, "two_factor_mandatory");
+            case TwoFactorChangeStatus.StepEnded:
+                return Problem(400, "Kurulum bitti", StepEndedMessage, "step_ended");
+            default:
+                return Problem(400, "Doğrulama başarısız", InvalidCodeMessage, "invalid_code");
+        }
     }
 
     public static void AddLoginRateLimit(this IServiceCollection services, IConfiguration configuration)
@@ -98,10 +212,64 @@ public static class AuthEndpoints
         return result.Status switch
         {
             LoginStatus.Succeeded => Issue(result.Session!, issuer, response),
+            LoginStatus.TwoFactorRequired => Results.Json(
+                new LoginStepResponse("verify", result.Step!.Credential, result.Step.ExpiresAt), statusCode: StatusCodes.Status202Accepted),
+            LoginStatus.TwoFactorSetupRequired => Results.Json(
+                new LoginStepResponse("setup", result.Step!.Credential, result.Step.ExpiresAt), statusCode: StatusCodes.Status202Accepted),
             LoginStatus.Locked => TooManyAttempts(),
             _ => Problem(401, "Giriş başarısız", InvalidCredentialsMessage, "invalid_credentials"),
         };
     }
+
+    private static async Task<IResult> VerifyLoginAsync(
+        VerifyLoginRequest request, ISender sender, TokenIssuer issuer, HttpResponse response, CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new VerifyLoginCommand(request.Step, request.Code, request.RecoveryCode), cancellationToken);
+        return StepAnswer(result) ?? Issue(result.Session!, issuer, response);
+    }
+
+    private static async Task<IResult> StartSetupAsync(
+        LoginStepRequest request, ISender sender, HttpResponse response, CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new StartSetupCommand(request.Step), cancellationToken);
+        if (!result.Started)
+        {
+            return StepEnded();
+        }
+
+        response.Headers.CacheControl = "no-store";
+        return Results.Ok(new TwoFactorSetupResponse(result.Key!, QrCodes.PngDataUri(result.ProvisioningUri!)));
+    }
+
+    private static async Task<IResult> ConfirmSetupAsync(
+        VerifyLoginRequest request, ISender sender, TokenIssuer issuer, HttpResponse response, CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new ConfirmSetupCommand(request.Step, request.Code), cancellationToken);
+        if (StepAnswer(result) is { } refused)
+        {
+            return refused;
+        }
+
+        response.Headers.CacheControl = "no-store";
+        return Results.Ok(new SetupCompletedResponse(Session(result.Session!, issuer, response), result.RecoveryCodes!));
+    }
+
+    private static async Task<NoContent> CancelLoginAsync(LoginStepRequest request, ISender sender, CancellationToken cancellationToken)
+    {
+        await sender.Send(new CancelLoginCommand(request.Step), cancellationToken);
+        return TypedResults.NoContent();
+    }
+
+    /// <summary>Null when the step succeeded; otherwise the spec's answer for it.</summary>
+    private static IResult? StepAnswer(TwoFactorStepResult result) => result.Status switch
+    {
+        TwoFactorStepStatus.Succeeded => null,
+        TwoFactorStepStatus.Locked => TooManyAttempts(),
+        TwoFactorStepStatus.InvalidCode => Problem(401, "Doğrulama başarısız", InvalidCodeMessage, "invalid_code"),
+        _ => StepEnded(),
+    };
+
+    private static IResult StepEnded() => Problem(401, "Doğrulama adımı bitti", StepEndedMessage, "step_ended");
 
     private static async Task<IResult> RefreshAsync(
         RefreshRequest? request, ISender sender, TokenIssuer issuer, HttpRequest httpRequest, HttpResponse response,
@@ -148,21 +316,25 @@ public static class AuthEndpoints
             ChangePasswordStatus.Changed => Results.NoContent(),
             ChangePasswordStatus.CurrentPasswordWrong => Problem(400, "Şifre değiştirilemedi", CurrentPasswordWrongMessage, "current_password_wrong"),
             ChangePasswordStatus.TooShort => Problem(400, "Şifre değiştirilemedi", PasswordTooShortMessage, "password_too_short"),
+            ChangePasswordStatus.Locked => TooManyAttempts(),
             _ => Problem(400, "Şifre değiştirilemedi", PasswordMismatchMessage, "password_mismatch"),
         };
     }
 
     /// <summary>Web: both credentials as httpOnly cookies, none in the body (AC-8). Mobile: in the body, for SecureStore.</summary>
-    private static IResult Issue(IssuedSession session, TokenIssuer issuer, HttpResponse response)
+    private static IResult Issue(IssuedSession session, TokenIssuer issuer, HttpResponse response) =>
+        Results.Ok(Session(session, issuer, response));
+
+    private static SessionResponse Session(IssuedSession session, TokenIssuer issuer, HttpResponse response)
     {
         var (access, accessExpiresAt) = issuer.Issue(session.AccountId, session.TenantId, session.SessionId, session.Roles, session.ExpiresAt);
         if (session.Client == ClientKind.Web)
         {
             SessionCookies.Write(response, access, accessExpiresAt, session.RefreshToken, session.ExpiresAt);
-            return Results.Ok(new SessionResponse(session.Roles, accessExpiresAt, session.ExpiresAt, null, null));
+            return new SessionResponse(session.Roles, accessExpiresAt, session.ExpiresAt, null, null);
         }
 
-        return Results.Ok(new SessionResponse(session.Roles, accessExpiresAt, session.ExpiresAt, access, session.RefreshToken));
+        return new SessionResponse(session.Roles, accessExpiresAt, session.ExpiresAt, access, session.RefreshToken);
     }
 
     private static IResult TooManyAttempts() =>
@@ -189,6 +361,29 @@ public static class AuthEndpoints
 public sealed record LoginRequest(string? InstitutionCode, string? Email, string? Password, string? Client);
 
 public sealed record RefreshRequest(string? RefreshToken);
+
+/// <summary>Spec 0004: <see cref="Next"/> is "verify" (enter a code) or "setup" (set 2FA up first). Not a session.</summary>
+public sealed record LoginStepResponse(string Next, string Step, DateTimeOffset StepExpiresAt);
+
+public sealed record LoginStepRequest(string? Step);
+
+/// <summary>A 6-digit <see cref="Code"/>, or a <see cref="RecoveryCode"/> instead (verify only).</summary>
+public sealed record VerifyLoginRequest(string? Step, string? Code, string? RecoveryCode);
+
+/// <summary>The key as typed into an authenticator app, and the same as a QR code (PNG data URI).</summary>
+public sealed record TwoFactorSetupResponse(string Key, string QrCode);
+
+/// <summary>The session, and the 10 kurtarma kodları — shown this once, never again (Requirement 3).</summary>
+public sealed record SetupCompletedResponse(SessionResponse Session, IReadOnlyList<string> RecoveryCodes);
+
+public sealed record TwoFactorStatusResponse(bool Enabled, bool Required, bool CanDisable, int RemainingRecoveryCodes);
+
+/// <summary>Turning 2FA on while signed in: the setup step, the key and its QR code.</summary>
+public sealed record TwoFactorEnableResponse(string Step, string Key, string QrCode);
+
+public sealed record TwoFactorCodeRequest(string? Code);
+
+public sealed record RecoveryCodesResponse(IReadOnlyList<string> RecoveryCodes);
 
 public sealed record ChangePasswordRequest(string? CurrentPassword, string? NewPassword, string? NewPasswordAgain);
 
