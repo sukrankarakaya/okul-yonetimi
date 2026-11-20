@@ -20,8 +20,8 @@
 - Fast/full ayrımı **seçiciyle** (Microsoft.Testing.Platform): `--filter-not-trait "Category=Integration"` (fast) ve
   `--filter-trait "Category=Integration"` (full). `--ignore-exit-code 8` yalnızca "bu test uygulaması sıfır test
   çalıştırdı" kodunu yok sayar (her proje diğer profilin testlerini içermez); toplam sayı çıktıda görünür.
-- Test sayıları (spec 0003 BUILD + spec 0002 merge sonrası): backend fast 132 (Kurum birim 32 + Kimlik birim 44 +
-  WebApi/Core birim 8 + test veritabanı yardımcıları 31 + mimari 17), entegrasyon 68, web 27, mobil 24. WebApi/Core ve
+- Test sayıları (spec 0004 VERIFY): backend fast 172 (Kurum birim 32 + Kimlik birim 84 + WebApi/Core birim 8 + test
+  veritabanı yardımcıları 31 + mimari 17), entegrasyon 107, web 86, mobil 53. WebApi/Core ve
   test veritabanı birim testleri: `backend/tests/Okul.WebApi.UnitTests`. **Entegrasyon projesine trait'siz test konmaz**
   (T-13: assembly fixture'ı her test için kurulur, fast profil veritabanı açar).
 - Kimlik entegrasyon testleri gerçek girişle oturum açar (`ApiFixture.LoginMobileAsync` / `LoginWebAsync`); örnek hesap
