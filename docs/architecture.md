@@ -27,7 +27,7 @@ packages/api-client/                       OpenAPI'den üretilen TS istemcisi (w
 |---|---|---|
 | Kurum (`Institution`) | Kurumun akademik iskeleti | Kurum (tenant), şube, sınıf seviyesi, sınıf, dönem, akademik takvim, ders programı |
 | Kimlik (`Identity`) | Kim girer, ne yapabilir | Kullanıcı, rol ataması, yetki, 2FA, oturum, şube bazlı görünürlük |
-| Kayıt (`Enrollment`) | Öğrenci ve veli kayıtları | Öğrenci kartı, veli, kardeş bağı, sağlık notu/alerji, teslim alabilecek kişi, içe aktarma işleri |
+| Kayıt (`Enrollment`) | Öğrenci ve veli kayıtları | Öğrenci kartı, veli, kardeş bağı, sağlık notu/alerji, teslim alabilecek kişi, içe aktarma işleri; veli giriş kodu ve giriş kilidi; Faz 1'de KVKK rıza kaydı (ADR 0002) |
 | Yoklama (`Attendance`) | Derse katılım | Yoklama kayıtları, devamsızlık toplamları |
 | İletişim (`Communication`) | Okul ↔ veli içerikleri | Duyuru + okundu bilgisi, mesaj, onay formu + yanıtlar, dosya/fotoğraf paylaşımı |
 | Akademik (`Academics`) | Ödev ve not | Ödev, teslim durumu, yazılı/sözlü not |
@@ -36,7 +36,7 @@ packages/api-client/                       OpenAPI'den üretilen TS istemcisi (w
 | Raporlama (`Reporting`) | Okuma amaçlı görünümler | Yönetici günlük özeti, raporlar, Excel dışa aktarma (yalnızca read model) |
 | Bildirim (`Notifications`) | Kanala dağıtım | Push token, SMS gönderimi, kanal seçimi, sessiz mod, gönderim kayıtları |
 | AI (`Ai`) | Taslak üretimi | Sesli nottan mesaj taslağı, haftalık gelişim özeti, taslak/onay durumu, kaynak veri referansı |
-| Uyum (`Compliance`) | KVKK ve iz | Audit log, aydınlatma metni sürümleri, açık rıza kayıtları, saklama/anonimleştirme işleri |
+| Uyum (`Compliance`) | KVKK ve iz | Audit log, aydınlatma metni sürümleri, açık rıza kayıtları (Faz 1'de veli rızası Kayıt'ta — ADR 0002), saklama/anonimleştirme işleri |
 
 ## Communication rules
 - Modüller arası senkron çağrı: yalnızca hedef modülün **public Application sözleşmesi** (contracts
@@ -49,6 +49,10 @@ packages/api-client/                       OpenAPI'den üretilen TS istemcisi (w
   (spec 0003) Kurum modülünü yalnızca `IInstitutionDirectory` sözleşmesiyle kullanır (kurum kodu → kurum). Oturum
   öncesi tek kiracısız depolama giriş kilidi kaydıdır (özetli anahtar, kurum verisi yok); her kimliği doğrulanmış
   istekte oturumun açık olduğu Kimlik modülüne sorulur (`ISessionValidator`).
+- Veli girişi (spec 0007, ADR 0002): Kayıt modülü kurum kodu + telefon + SMS kodunu doğrular, oturumu Kimlik açar
+  (`IGuardianSessions`). Oturum kaydı hesap türünü taşır (personel / veli); Kimlik bir veli oturumunu yenilerken veliyi
+  Kayıt'a sorar (`IGuardianDirectory`). Personel uçları yalnızca personel rollerini, veli uçları `Guardian` rolünü ve
+  güncel KVKK rızasını ister.
 
 ## Forbidden dependencies (make them testable)
 Mimari testleri (NetArchTest) her kuralı `scripts/check` içinde doğrular:
