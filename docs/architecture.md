@@ -53,6 +53,9 @@ packages/api-client/                       OpenAPI'den üretilen TS istemcisi (w
   (`IGuardianSessions`). Oturum kaydı hesap türünü taşır (personel / veli); Kimlik bir veli oturumunu yenilerken veliyi
   Kayıt'a sorar (`IGuardianDirectory`). Personel uçları yalnızca personel rollerini, veli uçları `Guardian` rolünü ve
   güncel KVKK rızasını ister.
+  Kayıt'ın `GuardianLoginDbContext`'i, Kimlik'in `LoginThrottleDbContext`'i gibi kuruma bağlı olmayan ikinci bağlamdır
+  (plan 0007, A-1): kayıtlı olmayan numara ve bilinmeyen kurum kodu kayıtlı olanla aynı davransın diye (K3); yalnız
+  özetli kurum kodu + telefon anahtarını, kod özetini, sayaçları ve zamanları tutar.
 
 ## Forbidden dependencies (make them testable)
 Mimari testleri (NetArchTest) her kuralı `scripts/check` içinde doğrular:
