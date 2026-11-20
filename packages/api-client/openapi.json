@@ -643,6 +643,217 @@
           }
         }
       }
+    },
+    "/api/v1/auth/guardian/code": {
+      "post": {
+        "tags": [
+          "GuardianAuth"
+        ],
+        "operationId": "RequestGuardianCode",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuardianCodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuardianCodeResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/guardian/verify": {
+      "post": {
+        "tags": [
+          "GuardianAuth"
+        ],
+        "operationId": "VerifyGuardianCode",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuardianVerifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuardianSessionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/guardian/cancel": {
+      "post": {
+        "tags": [
+          "GuardianAuth"
+        ],
+        "operationId": "CancelGuardianCode",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuardianCodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/guardian/consent": {
+      "get": {
+        "tags": [
+          "Guardian"
+        ],
+        "operationId": "GetGuardianConsent",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuardianConsentResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Guardian"
+        ],
+        "operationId": "AcceptGuardianConsent",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuardianConsentResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/guardian/me": {
+      "get": {
+        "tags": [
+          "Guardian"
+        ],
+        "operationId": "GetGuardianProfile",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuardianProfileResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -684,6 +895,122 @@
             ]
           },
           "newPasswordAgain": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "GuardianCodeRequest": {
+        "required": [
+          "institutionCode",
+          "phone"
+        ],
+        "type": "object",
+        "properties": {
+          "institutionCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "phone": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "GuardianCodeResponse": {
+        "required": [
+          "message"
+        ],
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "GuardianConsentResponse": {
+        "required": [
+          "accepted",
+          "textVersion",
+          "text"
+        ],
+        "type": "object",
+        "properties": {
+          "accepted": {
+            "type": "boolean"
+          },
+          "textVersion": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        }
+      },
+      "GuardianProfileResponse": {
+        "required": [
+          "displayName",
+          "maskedPhone"
+        ],
+        "type": "object",
+        "properties": {
+          "displayName": {
+            "type": "string"
+          },
+          "maskedPhone": {
+            "type": "string"
+          }
+        }
+      },
+      "GuardianSessionResponse": {
+        "required": [
+          "session",
+          "consentRequired"
+        ],
+        "type": "object",
+        "properties": {
+          "session": {
+            "$ref": "#/components/schemas/SessionResponse"
+          },
+          "consentRequired": {
+            "type": "boolean"
+          }
+        }
+      },
+      "GuardianVerifyRequest": {
+        "required": [
+          "institutionCode",
+          "phone",
+          "code",
+          "client"
+        ],
+        "type": "object",
+        "properties": {
+          "institutionCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "phone": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "client": {
             "type": [
               "null",
               "string"
@@ -1036,6 +1363,12 @@
     },
     {
       "name": "Auth"
+    },
+    {
+      "name": "GuardianAuth"
+    },
+    {
+      "name": "Guardian"
     }
   ]
 }

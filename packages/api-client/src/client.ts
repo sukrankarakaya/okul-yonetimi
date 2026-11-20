@@ -64,6 +64,29 @@ export type TwoFactorChangeResult =
   | { kind: 'notAllowed' }
   | { kind: 'unauthenticated' };
 
+/** Veli girişi — kod iste (spec 0007): `sent` is the same answer for every telefon (K3). */
+export type GuardianCodeResult =
+  | { kind: 'sent' }
+  | { kind: 'invalidPhone' }
+  | { kind: 'rateLimited' }
+  | { kind: 'smsFailed' }
+  | { kind: 'network' };
+
+/** Veli girişi — kodu doğrula (spec 0007): `consentRequired` → the KVKK screen first. */
+export type GuardianVerifyResult =
+  | { kind: 'ok'; consentRequired: boolean }
+  | { kind: 'invalidCode' }
+  | { kind: 'expired' }
+  | { kind: 'locked' }
+  | { kind: 'network' };
+
+export type GuardianConsent = components['schemas']['GuardianConsentResponse'];
+
+export type GuardianConsentResult =
+  | { kind: 'ok'; consent: GuardianConsent }
+  | { kind: 'unauthenticated' }
+  | { kind: 'network' };
+
 /** Mobile only: where access + refresh live — the device's secure store (spec 0003, Requirement 8). */
 export interface TokenStore {
   read(): Promise<StoredTokens | null>;
@@ -109,6 +132,13 @@ export interface OkulClient {
   confirmEnableTwoFactor(step: string, code: string): Promise<TwoFactorChangeResult>;
   disableTwoFactor(code: string): Promise<TwoFactorChangeResult>;
   renewRecoveryCodes(code: string): Promise<TwoFactorChangeResult>;
+  /** Spec 0007 — veli girişi. */
+  requestGuardianCode(institutionCode: string, phone: string): Promise<GuardianCodeResult>;
+  verifyGuardianCode(institutionCode: string, phone: string, code: string): Promise<GuardianVerifyResult>;
+  /** "Vazgeç": the pending code is cancelled (G-1). Never fails. */
+  cancelGuardianCode(institutionCode: string, phone: string): Promise<void>;
+  getGuardianConsent(): Promise<GuardianConsentResult>;
+  acceptGuardianConsent(): Promise<GuardianConsentResult>;
 }
 
 /** The header the API requires on cookie-authenticated state-changing requests (backend `SessionCookies`). */
@@ -131,7 +161,11 @@ export function createOkulClient(options: OkulClientOptions): OkulClient {
     async onRequest({ request }) {
       if (options.kind === 'web') {
         request.headers.set(csrfHeader, '1');
-      } else if (!request.url.includes('/api/v1/auth/login') && !request.url.includes('/api/v1/auth/refresh')) {
+      } else if (
+        !request.url.includes('/api/v1/auth/login') &&
+        !request.url.includes('/api/v1/auth/refresh') &&
+        !request.url.includes('/api/v1/auth/guardian/')
+      ) {
         const tokens = await options.tokenStore!.read();
         if (tokens) {
           request.headers.set('Authorization', `Bearer ${tokens.accessToken}`);
@@ -337,6 +371,55 @@ export function createOkulClient(options: OkulClientOptions): OkulClient {
       }
     },
 
+    async requestGuardianCode(institutionCode, phone) {
+      try {
+        const { response } = await api.POST('/api/v1/auth/guardian/code', { body: { institutionCode, phone } });
+        if (response.ok) return { kind: 'sent' };
+        if (response.status === 400) return { kind: 'invalidPhone' };
+        if (response.status === 429) return { kind: 'rateLimited' };
+        return response.status === 503 ? { kind: 'smsFailed' } : { kind: 'network' };
+      } catch {
+        return { kind: 'network' };
+      }
+    },
+
+    async verifyGuardianCode(institutionCode, phone, code) {
+      try {
+        const { data, error, response } = await api.POST('/api/v1/auth/guardian/verify', {
+          body: { institutionCode, phone, code, client: options.kind },
+        });
+        if (response.ok && data) {
+          await remember(data.session);
+          return { kind: 'ok', consentRequired: data.consentRequired };
+        }
+        if (response.status === 429) return { kind: 'locked' };
+        if (response.status === 401) {
+          return (error as { code?: string } | undefined)?.code === 'code_expired'
+            ? { kind: 'expired' }
+            : { kind: 'invalidCode' };
+        }
+        return { kind: 'network' };
+      } catch {
+        return { kind: 'network' };
+      }
+    },
+
+    async cancelGuardianCode(institutionCode, phone) {
+      try {
+        await api.POST('/api/v1/auth/guardian/cancel', { body: { institutionCode, phone } });
+      } catch {
+        // "Vazgeç" always returns to Veli Girişi; an unreachable server lets the code expire on its own (5 minutes).
+      }
+    },
+
+    async getGuardianConsent() {
+      return consent(() => api.GET('/api/v1/guardian/consent'));
+    },
+
+    async acceptGuardianConsent() {
+      return consent(() => api.POST('/api/v1/guardian/consent'));
+    },
+
     async cancelLogin(step) {
       try {
         await api.POST('/api/v1/auth/login/cancel', { body: { step } });
@@ -374,6 +457,17 @@ export function createOkulClient(options: OkulClientOptions): OkulClient {
       return change(() => api.POST('/api/v1/auth/two-factor/recovery-codes', { body: { code } }));
     },
   };
+
+  async function consent(
+    send: () => Promise<{ response: Response; data?: GuardianConsent }>,
+  ): Promise<GuardianConsentResult> {
+    const outcome = await withSession(send);
+    if ('network' in outcome) return { kind: 'network' };
+    if ('ended' in outcome) return { kind: 'unauthenticated' };
+    const { data, response } = outcome.result;
+    if (!response.ok || !data) return response.status === 403 ? { kind: 'unauthenticated' } : { kind: 'network' };
+    return { kind: 'ok', consent: data };
+  }
 
   async function verify(body: { step: string; code: string | null; recoveryCode: string | null }): Promise<VerifyResult> {
     try {
