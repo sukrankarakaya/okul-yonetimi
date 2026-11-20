@@ -3,7 +3,7 @@
 - Status: Draft
 - Mode: lite
 - Plan: `specs/plans/0007-plan.md`
-- Self-critique: pending (clarify K1–K8 kullanıcı yanıtı bekliyor — hassas alan, lite'ta taslağa katlanmaz)
+- Self-critique: pending (G-1–G-5 kullanıcı onayı bekliyor)
 
 ## Intent
 Spec 0005 veli girişini tanımladı ve `specs/done/`'a taşındı; ancak kodda uçtan uca çalışmıyor: veli uç noktası,
@@ -15,7 +15,7 @@ ile kanıtlanır. 0005 dosyası değiştirilmez (kural 7); bu spec onun giriş d
 Bilinçli olarak yapılmayan: çocuk/öğrenci verisi (0006), veli yönetim arayüzü, rızanın geri çekilmesi.
 
 ## Requirements
-<!-- "(K-n)" = clarify sorusuna bağlı; yazılan, önerilen yanıttır. -->
+<!-- "(K-n)" = aşağıdaki clarify kararına bağlı (kullanıcı onayı, 2026-11-20). -->
 1. Veli **kurum kodu + cep telefonu** ile giriş başlatır (K1). Kurum kodu 0003 kurallarıyla karşılaştırılır; telefon
    Türkiye cep biçimine normalize edilir (`0532…`, `532…`, `+90 532…` aynı numaradır, boşluk/tire yok sayılır).
 2. Yalnızca o kurumda kayıtlı bir velinin telefonuna kod gönderilir. Kayıtlı olmayan numara, bilinmeyen kurum kodu
@@ -95,17 +95,23 @@ Bilinçli olarak yapılmayan: çocuk/öğrenci verisi (0006), veli yönetim aray
 - [ ] Docs / ADRs updated if behavior or architecture changed
 - [ ] Spec moved to `specs/done/` (it becomes immutable there)
 
-## Clarify (yanıt bekliyor — her biri önerimle)
-- **K1 Kurum nasıl belirlenir?** 0005 yalnız telefon istiyordu; aynı telefon iki kurumda veli olabilir ve kilit anahtarı
-  "kurum kodu + e-posta" yazıyordu (velinin e-postası yok). *Öneri:* kurum kodu + telefon; mobilde kurum kodu hatırlanır. Gerekçe: 0003 ile tutarlı, BR-1 (kurum oturumdan).
-- **K2 Kod modeli?** 0005 "30 sn pencere ±1" (doğrulama uygulaması modeli) ile "5 dk geçerli"yi birlikte yazıyordu. *Öneri:* rastgele, tek kullanımlık, 5 dk, yeni kod eskisini iptal eder.
-- **K3 Kayıtlı olmayan numara?** 0005 "Bu telefon numarası kayıtlı değil" diyordu; bu, numaranın velisi olup olmadığını herkese ele verir. *Öneri:* her durumda aynı yanıt ("Numara kayıtlıysa…"), SMS yalnız kayıtlıya. Ödünleşim: yanlış numara yazan veli SMS beklemeye devam eder.
-- **K4 Oturum kuralları?** *Öneri:* 0003'ün aynısı (mevcut oturum altyapısı, veli rolüyle). Alternatif: velide daha uzun mobil oturum — önermiyorum, ayrı kural ayrı risk.
-- **K5 Veli kaydı nereden?** *Öneri:* bu spec'te örnek veri (0006 G-2 ile aynı); kurumun veli girişi ve Excel/e-Okul içe aktarma ayrı spec.
-- **K6 Metin sürümü değişince rıza yeniden alınsın mı?** *Öneri:* evet; KVKK açısından rıza belirli metne verilir.
-- **K7 Kanal?** kapsam.md'de veli kanalı mobil; 0005 ve 0006 web + mobil diyor. *Öneri:* web + mobil (0006 onaylı kapsamla tutarlı).
-- **K8 Sıfırlama komutu bu spec'te mi?** *Öneri:* evet, 0004'teki reset-2fa kalıbıyla küçük; çıkarılırsa kriter sayısı 9'da kalır ama telefonunu kaybeden veli kilitli kalabilir.
-- **SIZE:** 9 kriter, tek yetenek (veli girişi). Bölme önerilmiyor; K8 çıkarılırsa daha da daralır.
+## Clarify kararları (kullanıcı onayı, 2026-11-20 — hepsi önerildiği gibi)
+- **K1** Kurum kodu + telefon; mobilde kurum kodu hatırlanır (0005'teki "kurum kodu + e-posta" kilit anahtarı yerine).
+- **K2** Rastgele, tek kullanımlık, 5 dk geçerli kod; yeni kod eskisini iptal eder (0005'teki 30 sn pencere modeli yerine).
+- **K3** Kayıtlı olan / olmayan numara aynı yanıtı alır; SMS yalnız kayıtlıya. Ödünleşim kabul: yanlış numara yazan veli SMS bekler.
+- **K4** Oturum kuralları 0003'ün aynısı.
+- **K5** Veli kaydı bu spec'te örnek veriden; yönetim arayüzü ve içe aktarma ayrı spec.
+- **K6** Aydınlatma metni sürümü değişince rıza yeniden alınır.
+- **K7** Web + mobil.
+- **K8** Sıfırlama komutu bu spec'te.
+- **SIZE:** 9 kriter, tek yetenek (veli girişi); bölme önerilmedi.
+
+## Self-critique (onay bekliyor — her biri önerimle)
+- **G-1 "Vazgeç" ne yapar?** *Öneri:* SMS kodu ekranından Telefon ekranına döner ve bekleyen kodu iptal eder; girilen kurum kodu ve telefon alanlarda kalır.
+- **G-2 "SMS kodunu tekrar gönder" hız sınırına sayılır mı?** *Öneri:* evet, dakikada 3 isteğin içinde; sınırdayken bağlantı devre dışı ve hız sınırı mesajı.
+- **G-3 Kilit kayıtlı olmayan numarayı ele verir mi?** K3'le, kayıtlı olmayan numara da SMS kodu ekranına geçer. *Öneri:* orada 5 yanlış kod da aynı kilit mesajını gösterir (0003'teki "var olmayan hesap" kuralı); AC-3'e eklenir.
+- **G-4 Sağlayıcı yeniden denemeleri ne kadar sürer?** 0005'te "< 10 sn" vardı. *Öneri:* üç denemenin toplamı en fazla 10 sn; sonra hata mesajı. Kullanıcı en fazla 10 sn bekler.
+- **G-5 Mobilde hatırlanan kurum kodu çıkışta silinir mi?** *Öneri:* hayır, 0003'teki gibi kalır; telefon numarası ve kod hiç hatırlanmaz.
 
 ## Scorecard (fill at ship — honest numbers make the process improvable)
 | Metric | Value |
