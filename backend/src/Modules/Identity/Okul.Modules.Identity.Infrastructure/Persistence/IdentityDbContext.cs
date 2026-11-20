@@ -60,6 +60,8 @@ public sealed class IdentityDbContext : TenantDbContext
             session.Property(s => s.TenantId).HasColumnName("tenant_id");
             session.Property(s => s.AccountId).HasColumnName("account_id");
             session.Property(s => s.Client).HasColumnName("client");
+            // Spec 0007: rows before the column are staff sessions.
+            session.Property(s => s.Kind).HasColumnName("account_kind").HasDefaultValue(AccountKind.Staff);
             session.Property(s => s.StartedAt).HasColumnName("started_at");
             session.Property(s => s.ExpiresAt).HasColumnName("expires_at");
             session.Property(s => s.ClosedAt).HasColumnName("closed_at");

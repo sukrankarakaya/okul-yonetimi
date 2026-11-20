@@ -183,7 +183,7 @@ public sealed class HandlerTests
             .Handle(new LoginCommand(code, email, password, client), TestContext.Current.CancellationToken);
 
     private Task<RefreshResult> Refresh(string? token) =>
-        new RefreshSessionCommandHandler(_scope, _sessions, _accounts, _clock).Handle(new RefreshSessionCommand(token), TestContext.Current.CancellationToken);
+        new RefreshSessionCommandHandler(_scope, _sessions, _accounts, new FakeGuardianDirectory(), _clock).Handle(new RefreshSessionCommand(token), TestContext.Current.CancellationToken);
 
     private async Task<ChangePasswordStatus> ChangePassword(IssuedSession session, string current, string next, string again)
     {

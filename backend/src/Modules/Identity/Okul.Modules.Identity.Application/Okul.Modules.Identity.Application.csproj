@@ -7,6 +7,7 @@
     <ProjectReference Include="..\Okul.Modules.Identity.Contracts\Okul.Modules.Identity.Contracts.csproj" />
     <!-- Another module only through its contracts (docs/architecture.md, Forbidden dependencies 1). -->
     <ProjectReference Include="..\..\Institution\Okul.Modules.Institution.Contracts\Okul.Modules.Institution.Contracts.csproj" />
+    <ProjectReference Include="..\..\Enrollment\Okul.Modules.Enrollment.Contracts\Okul.Modules.Enrollment.Contracts.csproj" />
     <ProjectReference Include="..\..\..\Core\Okul.Core\Okul.Core.csproj" />
   </ItemGroup>
 </Project>

@@ -768,6 +768,7 @@
         "dependencies": {
           "NArchitecture.Core.Mediator": "[2.0.0, )",
           "Okul.Core": "[1.0.0, )",
+          "Okul.Modules.Enrollment.Contracts": "[1.0.0, )",
           "Okul.Modules.Identity.Contracts": "[1.0.0, )",
           "Okul.Modules.Identity.Domain": "[1.0.0, )",
           "Okul.Modules.Institution.Contracts": "[1.0.0, )"

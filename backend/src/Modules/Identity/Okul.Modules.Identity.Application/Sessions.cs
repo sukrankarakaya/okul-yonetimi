@@ -1,5 +1,6 @@
 using NArchitecture.Core.Mediator;
 using Okul.Core.Tenancy;
+using Okul.Modules.Enrollment.Contracts;
 using Okul.Modules.Identity.Contracts;
 using Okul.Modules.Identity.Domain;
 
@@ -26,14 +27,17 @@ public sealed class RefreshSessionCommandHandler : IRequestHandler<RefreshSessio
     private readonly ITenantScope _tenantScope;
     private readonly ISessionStore _sessions;
     private readonly IStaffAccountStore _accounts;
+    private readonly IGuardianDirectory _guardians;
     private readonly TimeProvider _time;
 
     public RefreshSessionCommandHandler(
-        ITenantScope tenantScope, ISessionStore sessions, IStaffAccountStore accounts, TimeProvider time)
+        ITenantScope tenantScope, ISessionStore sessions, IStaffAccountStore accounts, IGuardianDirectory guardians,
+        TimeProvider time)
     {
         _tenantScope = tenantScope;
         _sessions = sessions;
         _accounts = accounts;
+        _guardians = guardians;
         _time = time;
     }
 
@@ -77,6 +81,20 @@ public sealed class RefreshSessionCommandHandler : IRequestHandler<RefreshSessio
         if (!await _sessions.TrySaveChangesAsync(cancellationToken))
         {
             return new RefreshResult(RefreshStatus.Conflict);
+        }
+
+        // Spec 0007: a veli session renews while Kayıt still knows the veli; roles are the veli role only (ADR 0002).
+        if (session.Kind == AccountKind.Guardian)
+        {
+            if (!await _guardians.IsActiveAsync(session.TenantId, session.AccountId, cancellationToken))
+            {
+                await _sessions.CloseAsync(session.Id, now, cancellationToken);
+                return new RefreshResult(RefreshStatus.Rejected);
+            }
+
+            return new RefreshResult(RefreshStatus.Renewed, new IssuedSession(
+                session.Id, session.TenantId, session.AccountId, [StaffRoles.Guardian], session.Client, session.ExpiresAt,
+                next.ToString()));
         }
 
         var account = await _accounts.FindByIdAsync(session.AccountId, cancellationToken);

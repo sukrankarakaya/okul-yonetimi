@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using NArchitecture.Core.Mediator.DependencyInjection;
 using Okul.Core.Tenancy;
+using Okul.Modules.Enrollment.Application;
 using Okul.Modules.Enrollment.Infrastructure;
 using Okul.Modules.Identity.Application;
 using Okul.Modules.Identity.Contracts;
@@ -87,7 +88,9 @@ services.AddMediator(configuration => configuration.RegisterServicesFromAssembli
     InstitutionApplicationAssembly.Assembly, IdentityApplicationAssembly.Assembly));
 var connectionString = builder.Configuration.GetConnectionString("Okul");
 services.AddInstitutionInfrastructure(connectionString ?? string.Empty);
-services.AddEnrollmentInfrastructure(connectionString ?? string.Empty);
+services.AddEnrollmentInfrastructure(
+    connectionString ?? string.Empty,
+    KvkkText.Create(builder.Configuration["Kvkk:TextVersion"], builder.Configuration["Kvkk:Text"]));
 services.AddIdentityInfrastructure(
     connectionString ?? string.Empty, TwoFactorKeyFromConfiguration(builder.Configuration, builder.Environment));
 

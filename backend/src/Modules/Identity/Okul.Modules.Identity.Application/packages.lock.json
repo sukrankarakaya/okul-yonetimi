@@ -100,6 +100,9 @@
           "Microsoft.EntityFrameworkCore.Relational": "[10.0.15, )"
         }
       },
+      "okul.modules.enrollment.contracts": {
+        "type": "Project"
+      },
       "okul.modules.identity.contracts": {
         "type": "Project"
       },

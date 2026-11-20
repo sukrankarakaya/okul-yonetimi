@@ -133,6 +133,12 @@ namespace Okul.Modules.Identity.Infrastructure.Persistence.Migrations.Identity
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("expires_at");
 
+                    b.Property<int>("Kind")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("account_kind");
+
                     b.Property<string>("PreviousRefreshHash")
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)")

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Okul.Core.Tenancy;
+using Okul.Modules.Enrollment.Contracts;
 using Okul.Modules.Identity.Application;
 using Okul.Modules.Identity.Domain;
 using Okul.Modules.Identity.Infrastructure;
@@ -142,7 +143,8 @@ public sealed class IdentityPersistenceTests
             (await store.TrySaveChangesAsync(ct)).ShouldBeTrue();
         });
         var handler = new RefreshSessionCommandHandler(
-            new PassThroughScope(), racing, handlerScope.ServiceProvider.GetRequiredService<IStaffAccountStore>(), TimeProvider.System);
+            new PassThroughScope(), racing, handlerScope.ServiceProvider.GetRequiredService<IStaffAccountStore>(), new NoGuardians(),
+            TimeProvider.System);
         var stolen = new RefreshCredential(TenantA, session.Id, new string('x', 43)); // neither current nor previous
 
         var result = await handler.Handle(new RefreshSessionCommand(stolen.ToString()), ct);
@@ -270,5 +272,15 @@ public sealed class IdentityPersistenceTests
     private sealed class NoScope : ITenantScope
     {
         public IDisposable Begin(Guid tenantId) => throw new NotSupportedException();
+    }
+
+    /// <summary>A staff session is renewed here; Kayıt is never asked (spec 0007 changes nothing for staff).</summary>
+    private sealed class NoGuardians : IGuardianDirectory
+    {
+        public Task<bool> IsActiveAsync(Guid tenantId, Guid guardianId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(false);
+
+        public Task<bool> HasCurrentConsentAsync(Guid tenantId, Guid guardianId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(false);
     }
 }

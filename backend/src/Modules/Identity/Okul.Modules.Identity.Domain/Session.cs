@@ -6,6 +6,13 @@ public enum ClientKind
     Mobile = 2,
 }
 
+/// <summary>Whose session it is (spec 0007, ADR 0002): a staff account (spec 0003) or a veli (Kayıt module).</summary>
+public enum AccountKind
+{
+    Staff = 1,
+    Guardian = 2,
+}
+
 public enum RefreshOutcome
 {
     /// <summary>The presented refresh credential was current: a new one replaces it.</summary>
@@ -47,6 +54,9 @@ public sealed class Session
 
     public ClientKind Client { get; private set; }
 
+    /// <summary>A veli session renews only while Kayıt still knows the veli (spec 0007, Requirement 7).</summary>
+    public AccountKind Kind { get; private set; }
+
     public DateTimeOffset StartedAt { get; private set; }
 
     public DateTimeOffset ExpiresAt { get; private set; }
@@ -60,7 +70,8 @@ public sealed class Session
     public DateTimeOffset? RotatedAt { get; private set; }
 
     public static Session Start(
-        Guid id, Guid tenantId, Guid accountId, ClientKind client, DateTimeOffset now, string refreshHash)
+        Guid id, Guid tenantId, Guid accountId, ClientKind client, DateTimeOffset now, string refreshHash,
+        AccountKind kind = AccountKind.Staff)
     {
         if (id == Guid.Empty || tenantId == Guid.Empty || accountId == Guid.Empty)
         {
@@ -72,12 +83,18 @@ public sealed class Session
             throw new ArgumentOutOfRangeException(nameof(client));
         }
 
+        if (!Enum.IsDefined(kind))
+        {
+            throw new ArgumentOutOfRangeException(nameof(kind));
+        }
+
         return new Session
         {
             Id = id,
             TenantId = tenantId,
             AccountId = accountId,
             Client = client,
+            Kind = kind,
             StartedAt = now,
             ExpiresAt = now + (client == ClientKind.Web ? WebLifetime : MobileLifetime),
             CurrentRefreshHash = RequireHash(refreshHash),

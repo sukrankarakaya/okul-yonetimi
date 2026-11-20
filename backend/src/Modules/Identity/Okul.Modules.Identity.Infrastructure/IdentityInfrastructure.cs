@@ -19,6 +19,7 @@ public static class IdentityInfrastructure
         services.AddScoped<ISessionStore, SessionStore>();
         services.AddScoped<ILoginThrottleStore, LoginThrottleStore>();
         services.AddScoped<ISessionValidator, SessionValidator>();
+        services.AddScoped<IGuardianSessions, GuardianSessions>();
         services.AddSingleton<IPasswordHasher, StaffPasswordHasher>();
         services.AddScoped<ILoginChallengeStore, LoginChallengeStore>();
         services.AddScoped<IRecoveryCodeStore, RecoveryCodeStore>();

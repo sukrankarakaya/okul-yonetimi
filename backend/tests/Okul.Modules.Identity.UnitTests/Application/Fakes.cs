@@ -1,4 +1,5 @@
 using Okul.Core.Tenancy;
+using Okul.Modules.Enrollment.Contracts;
 using Okul.Modules.Identity.Application;
 using Okul.Modules.Identity.Domain;
 using Okul.Modules.Institution.Contracts;
@@ -24,6 +25,18 @@ internal sealed class FakeTenantScope : ITenantScope
     {
         public void Dispose() => restore();
     }
+}
+
+/// <summary>Kayıt's answer about veliler (spec 0007): only the ones added here are active.</summary>
+internal sealed class FakeGuardianDirectory : IGuardianDirectory
+{
+    public HashSet<(Guid TenantId, Guid GuardianId)> Active { get; } = [];
+
+    public Task<bool> IsActiveAsync(Guid tenantId, Guid guardianId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(Active.Contains((tenantId, guardianId)));
+
+    public Task<bool> HasCurrentConsentAsync(Guid tenantId, Guid guardianId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(false);
 }
 
 internal sealed class FakeDirectory : IInstitutionDirectory
