@@ -96,7 +96,8 @@ public sealed class LockoutAndRateLimitTests
     public async Task Source_21stAttemptInAMinute_IsThrottled()
     {
         var ct = TestContext.Current.CancellationToken;
-        await using var factory = _api.CreateFactory(DevAuthEndpoints.TestingEnvironment, loginsPerMinute: 20);
+        // No override: the production default (20/min, spec 0003 Requirement 4) is what is proven (VERIFY round 1 F-1).
+        await using var factory = _api.CreateFactory(DevAuthEndpoints.TestingEnvironment, loginsPerMinute: null);
 
         for (var i = 0; i < 20; i++)
         {

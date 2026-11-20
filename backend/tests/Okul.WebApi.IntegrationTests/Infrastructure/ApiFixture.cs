@@ -97,8 +97,9 @@ public sealed class ApiFixture : IAsyncLifetime
     }
 
     /// <param name="time">A fake clock for lifetime tests (plan 0003, R6); default the system clock.</param>
-    /// <param name="loginsPerMinute">The source login limit (spec 0003, Requirement 4); default out of reach.</param>
-    public OkulApiFactory CreateFactory(string environment, TimeProvider? time = null, int loginsPerMinute = UnlimitedLoginsPerMinute) =>
+    /// <param name="loginsPerMinute">The source login limit (spec 0003, Requirement 4); default out of reach;
+    /// <c>null</c> sets nothing, so the production default applies (VERIFY round 1 F-1).</param>
+    public OkulApiFactory CreateFactory(string environment, TimeProvider? time = null, int? loginsPerMinute = UnlimitedLoginsPerMinute) =>
         new(environment, ConnectionString, Convert.ToBase64String(SigningKey), time, loginsPerMinute);
 
     /// <summary>A client signed in through the Testing-only test login (any role, incl. Guardian).</summary>
@@ -233,9 +234,9 @@ public sealed class OkulApiFactory : WebApplicationFactory<Program>
     private readonly string _connectionString;
     private readonly string _signingKey;
     private readonly TimeProvider? _time;
-    private readonly int _loginsPerMinute;
+    private readonly int? _loginsPerMinute;
 
-    public OkulApiFactory(string environment, string connectionString, string signingKey, TimeProvider? time, int loginsPerMinute)
+    public OkulApiFactory(string environment, string connectionString, string signingKey, TimeProvider? time, int? loginsPerMinute)
     {
         _environment = environment;
         _connectionString = connectionString;
@@ -249,7 +250,10 @@ public sealed class OkulApiFactory : WebApplicationFactory<Program>
         builder.UseEnvironment(_environment);
         builder.UseSetting("ConnectionStrings:Okul", _connectionString);
         builder.UseSetting("Auth:SigningKey", _signingKey);
-        builder.UseSetting("Auth:LoginRateLimitPerMinute", _loginsPerMinute.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        if (_loginsPerMinute is { } loginsPerMinute)
+        {
+            builder.UseSetting("Auth:LoginRateLimitPerMinute", loginsPerMinute.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
         if (_time is not null)
         {
             builder.ConfigureServices(services => services.Replace(ServiceDescriptor.Singleton(_time)));
