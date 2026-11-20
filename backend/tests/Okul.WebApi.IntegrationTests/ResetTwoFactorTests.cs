@@ -1,6 +1,6 @@
+using System.Net;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using System.Net;
 using Okul.Modules.Identity.Domain;
 using Okul.Modules.Institution.Infrastructure.Persistence;
 using Okul.WebApi.Hosting;
