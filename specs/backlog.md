@@ -84,6 +84,12 @@ step 7). Nothing lands here without that decision; noise is rejected in the tria
   kalıcı satır bırakır; fix-1'den beri her hesabın ilk başarılı girişi de bir (sıfırlanmış) satır yazar — Source: spec 0003,
   review round 1 #12 + round 2 I-2 — Severity: info — Recommendation: süresi geçmiş satırları
   silen bir arka plan işi (Hangfire geldiğinde) — Deferred by: kullanıcı, 2026-11-19, triage
+- **B-14** — **Kapandı (PR #2, `f3c1181`, 2026-11-20):** macOS `/bin/sh` (bash 3.2) `scripts/check` ve `scripts/doctor`'u
+  ayrıştıramıyordu (`$( … )` içindeki `case` kalıpları); `scripts/*` ve hook'lar 100644 kayıtlıydı — Source: Mac'e devir
+  (devir notu, `d93c0d9`) — Severity: high (Mac'te check yok)
+- **B-15** — bash 3.2 regresyonu Linux CI'da yakalanmaz (ubuntu'da `/bin/sh` dash, bash 5) — Source: B-14 review
+  (`.github/workflows/check.yml`) — Severity: low — Recommendation: CI'a geçiş kararıyla (B-1) birlikte `macos-latest`
+  üzerinde `/bin/sh -n scripts/*` adımı; Mac'te `./scripts/selftest` bugün koruyor — Deferred by: kullanıcı, 2026-11-20, triage
 - **B-16** — Mobil Kurulum ekranında 2FA anahtarı satır ortasında kırılıyor (okunurluk; "Kopyala" var) — Source: spec 0004,
   VERIFY round 1 #3 (`mobile/src/features/login/SetupStep.tsx`) — Severity: info — Recommendation: anahtarı 4'lü gruplarla
   ve satır kırılmadan göster — Deferred by: kullanıcı, 2026-11-20, triage
