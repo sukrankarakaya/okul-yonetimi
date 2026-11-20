@@ -75,8 +75,12 @@ services.AddAuthorizationBuilder()
     .SetFallbackPolicy(new AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser()
         .RequireClaim(OkulClaims.TenantId)
-        .RequireRole(Roles.All)
-        .Build());
+        .RequireRole(Roles.Staff) // spec 0007, AC-6: a veli session reaches no staff endpoint (plan 0007, R-3)
+        .Build())
+    .AddPolicy(AuthEndpoints.AnySessionPolicy, policy => policy
+        .RequireAuthenticatedUser().RequireClaim(OkulClaims.TenantId).RequireRole(Roles.All))
+    .AddGuardianPolicies();
+services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, CurrentConsentHandler>();
 
 services.AddHttpContextAccessor();
 services.AddScoped<HttpTenantContext>();
@@ -86,14 +90,15 @@ services.AddLoginRateLimit(builder.Configuration);
 
 // --- Modules ---
 services.AddMediator(configuration => configuration.RegisterServicesFromAssemblies(
-    InstitutionApplicationAssembly.Assembly, IdentityApplicationAssembly.Assembly));
+    InstitutionApplicationAssembly.Assembly, IdentityApplicationAssembly.Assembly, EnrollmentApplicationAssembly.Assembly));
 var connectionString = builder.Configuration.GetConnectionString("Okul");
 services.AddInstitutionInfrastructure(connectionString ?? string.Empty);
 services.AddEnrollmentInfrastructure(
     connectionString ?? string.Empty,
     KvkkText.Create(builder.Configuration["Kvkk:TextVersion"], builder.Configuration["Kvkk:Text"]),
     GuardianLoginKeyFromConfiguration(builder.Configuration, builder.Environment),
-    NetgsmFromConfiguration(builder.Configuration, builder.Environment));
+    NetgsmFromConfiguration(builder.Configuration, builder.Environment),
+    new GuardianLoginTiming(TimeSpan.FromMilliseconds(builder.Configuration.GetValue("Auth:GuardianCodeMinimumResponseMs", 1500))));
 services.AddIdentityInfrastructure(
     connectionString ?? string.Empty, TwoFactorKeyFromConfiguration(builder.Configuration, builder.Environment));
 
@@ -117,6 +122,11 @@ if (args.FirstOrDefault() == CreateAdminCommand.Name)
     return await CreateAdminCommand.RunAsync(app.Services, args, Console.In, Console.Out);
 }
 
+if (args.FirstOrDefault() == Okul.WebApi.Hosting.ResetGuardianCommand.Name)
+{
+    return await Okul.WebApi.Hosting.ResetGuardianCommand.RunAsync(app.Services, args, Console.Out);
+}
+
 if (args.FirstOrDefault() == ResetTwoFactorCommand.Name)
 {
     return await ResetTwoFactorCommand.RunAsync(app.Services, args, Console.Out);
@@ -138,6 +148,7 @@ if (app.Environment.IsDevelopment())
 var api = app.MapGroup("/api/v1");
 api.MapInstitutionEndpoints();
 api.MapAuthEndpoints();
+api.MapGuardianAuthEndpoints();
 app.MapDevAuth(app.Environment);
 
 await app.RunAsync();

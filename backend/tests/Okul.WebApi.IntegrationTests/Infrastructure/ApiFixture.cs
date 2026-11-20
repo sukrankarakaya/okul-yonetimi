@@ -343,6 +343,7 @@ public sealed class OkulApiFactory : WebApplicationFactory<Program>
         // Spec 0007: the veli login key, as the 2FA key; outside Development/Testing the API demands Netgsm (Requirement 5)
         // — these accounts are never called: no test outside Testing sends an SMS.
         builder.UseSetting("Auth:GuardianCodeKey", Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)));
+        builder.UseSetting("Auth:GuardianCodeMinimumResponseMs", "0"); // the padding itself: RequestGuardianCodeTests
         if (_environment is not ("Development" or DevAuthEndpoints.TestingEnvironment))
         {
             builder.UseSetting("Sms:Provider", "Netgsm");

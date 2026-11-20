@@ -9,6 +9,9 @@ public static class Roles
     public const string Accountant = "Accountant";       // Muhasebe / İdari personel
 
     public static readonly IReadOnlyList<string> All = [Administrator, Teacher, Guardian, Accountant];
+
+    /// <summary>Spec 0007, AC-6: what the fallback policy accepts — a veli session reaches no staff endpoint.</summary>
+    public static readonly IReadOnlyList<string> Staff = [Administrator, Teacher, Accountant];
 }
 
 public static class OkulClaims

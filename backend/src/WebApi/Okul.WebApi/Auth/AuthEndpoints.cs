@@ -17,6 +17,9 @@ public static class AuthEndpoints
 {
     public const string LoginRateLimitPolicy = "login";
 
+    /// <summary>Spec 0007: a staff or a veli session (the fallback policy is staff only — plan 0007, R-3).</summary>
+    public const string AnySessionPolicy = "any-session";
+
     public const string InvalidCredentialsMessage = "Kurum kodu, e-posta veya şifre hatalı.";
     public const string TooManyAttemptsMessage = "Çok fazla başarısız deneme. 15 dakika sonra tekrar deneyin.";
     public const string SessionEndedMessage = "Oturumunuzun süresi doldu, tekrar giriş yapın.";
@@ -84,11 +87,14 @@ public static class AuthEndpoints
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status409Conflict);
 
+        // Spec 0007: staff and veli sessions both log out and read their session (every other endpoint is staff only).
         auth.MapPost("/logout", LogoutAsync)
+            .RequireAuthorization(AnySessionPolicy)
             .WithName("Logout")
             .Produces(StatusCodes.Status204NoContent);
 
         auth.MapGet("/session", GetSession)
+            .RequireAuthorization(AnySessionPolicy)
             .WithName("GetSession")
             .Produces<SessionInfo>();
 
@@ -325,7 +331,7 @@ public static class AuthEndpoints
     private static IResult Issue(IssuedSession session, TokenIssuer issuer, HttpResponse response) =>
         Results.Ok(Session(session, issuer, response));
 
-    private static SessionResponse Session(IssuedSession session, TokenIssuer issuer, HttpResponse response)
+    internal static SessionResponse Session(IssuedSession session, TokenIssuer issuer, HttpResponse response)
     {
         var (access, accessExpiresAt) = issuer.Issue(session.AccountId, session.TenantId, session.SessionId, session.Roles, session.ExpiresAt);
         if (session.Client == ClientKind.Web)
@@ -337,13 +343,13 @@ public static class AuthEndpoints
         return new SessionResponse(session.Roles, accessExpiresAt, session.ExpiresAt, access, session.RefreshToken);
     }
 
-    private static IResult TooManyAttempts() =>
+    internal static IResult TooManyAttempts() =>
         Problem(429, "Çok fazla deneme", TooManyAttemptsMessage, "too_many_attempts");
 
-    private static IResult Problem(int status, string title, string detail, string code) =>
+    internal static IResult Problem(int status, string title, string detail, string code) =>
         Results.Problem(statusCode: status, title: title, detail: detail, extensions: new Dictionary<string, object?> { ["code"] = code });
 
-    private static bool TryParseClient(string? value, out ClientKind client)
+    internal static bool TryParseClient(string? value, out ClientKind client)
     {
         client = value switch
         {
@@ -354,7 +360,7 @@ public static class AuthEndpoints
         return client != default;
     }
 
-    private static Guid ClaimGuid(ClaimsPrincipal user, string type) =>
+    internal static Guid ClaimGuid(ClaimsPrincipal user, string type) =>
         Guid.Parse(user.FindFirst(type)?.Value ?? throw new InvalidOperationException($"Claim '{type}' is missing."));
 }
 

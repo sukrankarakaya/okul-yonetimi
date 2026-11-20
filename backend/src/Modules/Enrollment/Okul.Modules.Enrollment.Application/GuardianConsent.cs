@@ -71,3 +71,28 @@ public sealed class AcceptGuardianConsentCommandHandler : IRequestHandler<Accept
         return new GuardianConsentStatus(true, _text.Version, _text.Body);
     }
 }
+
+/// <summary>The veli's own profile (spec 0006/0007): name or "Veli", and the masked telefon only.</summary>
+public sealed record GuardianProfile(string DisplayName, string MaskedPhone);
+
+public sealed record GetGuardianProfileQuery(Guid TenantId, Guid GuardianId) : IRequest<GuardianProfile>;
+
+public sealed class GetGuardianProfileQueryHandler : IRequestHandler<GetGuardianProfileQuery, GuardianProfile>
+{
+    private readonly ITenantScope _tenantScope;
+    private readonly IGuardianStore _guardians;
+
+    public GetGuardianProfileQueryHandler(ITenantScope tenantScope, IGuardianStore guardians)
+    {
+        _tenantScope = tenantScope;
+        _guardians = guardians;
+    }
+
+    public async Task<GuardianProfile> Handle(GetGuardianProfileQuery request, CancellationToken cancellationToken)
+    {
+        using var scope = _tenantScope.Begin(request.TenantId);
+        var guardian = await _guardians.FindByIdAsync(request.GuardianId, cancellationToken)
+            ?? throw new InvalidOperationException("Oturumun velisi bu kurumda yok.");
+        return new GuardianProfile(guardian.DisplayName, PhoneNumber.FromE164(guardian.Phone).Masked);
+    }
+}

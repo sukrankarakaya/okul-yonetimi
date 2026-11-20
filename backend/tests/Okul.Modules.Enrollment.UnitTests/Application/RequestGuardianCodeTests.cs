@@ -109,4 +109,20 @@ public sealed class RequestGuardianCodeTests
         stored.PairKey.ShouldNotContain("5321234567");
         stored.CodeHash.Length.ShouldBe(64);
     }
+
+    [Fact]
+    public async Task EveryAnswer_TakesAtLeastTheMinimum_RegisteredOrNot()
+    {
+        var world = new LoginWorld { Timing = new GuardianLoginTiming(TimeSpan.FromMilliseconds(200)) };
+        var handler = (string phone) => new RequestGuardianCodeCommandHandler(
+            world.Institutions, world.Scope, world.Guardians, world.Login, world.Hasher, world.Sms, world.Timing, TimeProvider.System)
+            .Handle(new RequestGuardianCodeCommand(LoginWorld.KurumA, phone), world.Ct);
+
+        foreach (var phone in new[] { LoginWorld.AysePhone, "0533 000 00 00" })
+        {
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            (await handler(phone)).ShouldBe(RequestCodeStatus.Accepted);
+            watch.Elapsed.ShouldBeGreaterThanOrEqualTo(TimeSpan.FromMilliseconds(190));
+        }
+    }
 }

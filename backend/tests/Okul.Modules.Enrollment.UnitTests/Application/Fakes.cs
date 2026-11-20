@@ -166,6 +166,8 @@ internal sealed class LoginWorld
 
     public KvkkText Text { get; set; } = KvkkText.Create("taslak", "metin");
 
+    public GuardianLoginTiming Timing { get; set; } = new(TimeSpan.Zero);
+
     public GuardianCodeHasher Hasher { get; } = new(new GuardianLoginKey(RandomNumberGenerator.GetBytes(GuardianLoginKey.Length)));
 
     public GuardianDirectory Directory { get; private set; }
@@ -183,7 +185,7 @@ internal sealed class LoginWorld
     }
 
     public Task<RequestCodeStatus> Request(string? kurum = KurumA, string? phone = AysePhone) =>
-        new RequestGuardianCodeCommandHandler(Institutions, Scope, Guardians, Login, Hasher, Sms, Clock)
+        new RequestGuardianCodeCommandHandler(Institutions, Scope, Guardians, Login, Hasher, Sms, Timing, Clock)
             .Handle(new RequestGuardianCodeCommand(kurum, phone), Ct);
 
     public Task<VerifyCodeResult> Verify(string? code, string? kurum = KurumA, string? phone = AysePhone) =>

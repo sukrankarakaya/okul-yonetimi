@@ -23,6 +23,16 @@ public enum RequestCodeStatus
     SmsFailed,
 }
 
+/// <summary>
+/// Every code request answers after at least <see cref="MinimumResponse"/> (plan 0007, decision A, 2026-11-20): the SMS
+/// to a registered veli takes time, an unregistered telefon none — without this the delay would tell them apart (K3).
+/// Only a provider slower than this, or down, still shows. Zero in tests.
+/// </summary>
+public sealed record GuardianLoginTiming(TimeSpan MinimumResponse)
+{
+    public static readonly GuardianLoginTiming Default = new(TimeSpan.FromMilliseconds(1500));
+}
+
 /// <summary>Kod iste (spec 0007, Requirements 1–5): kurum kodu + telefon.</summary>
 public sealed record RequestGuardianCodeCommand(string? InstitutionCode, string? Phone) : IRequest<RequestCodeStatus>;
 
@@ -34,12 +44,14 @@ public sealed class RequestGuardianCodeCommandHandler : IRequestHandler<RequestG
     private readonly IGuardianLoginStore _login;
     private readonly IGuardianLoginHasher _hasher;
     private readonly ISmsSender _sms;
+    private readonly GuardianLoginTiming _timing;
     private readonly TimeProvider _time;
 
     public RequestGuardianCodeCommandHandler(
         IInstitutionDirectory institutions, ITenantScope tenantScope, IGuardianStore guardians, IGuardianLoginStore login,
-        IGuardianLoginHasher hasher, ISmsSender sms, TimeProvider time)
+        IGuardianLoginHasher hasher, ISmsSender sms, GuardianLoginTiming timing, TimeProvider time)
     {
+        _timing = timing;
         _institutions = institutions;
         _tenantScope = tenantScope;
         _guardians = guardians;
@@ -50,6 +62,19 @@ public sealed class RequestGuardianCodeCommandHandler : IRequestHandler<RequestG
     }
 
     public async Task<RequestCodeStatus> Handle(RequestGuardianCodeCommand request, CancellationToken cancellationToken)
+    {
+        var started = _time.GetTimestamp();
+        var status = await RequestAsync(request, cancellationToken);
+        var remaining = _timing.MinimumResponse - _time.GetElapsedTime(started);
+        if (remaining > TimeSpan.Zero)
+        {
+            await Task.Delay(remaining, _time, cancellationToken);
+        }
+
+        return status;
+    }
+
+    private async Task<RequestCodeStatus> RequestAsync(RequestGuardianCodeCommand request, CancellationToken cancellationToken)
     {
         var phone = PhoneNumber.Parse(request.Phone);
         if (phone is null)

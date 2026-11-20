@@ -14,8 +14,9 @@ public static class EnrollmentInfrastructure
     /// <param name="netgsm">Null: the fake sender (Development and Testing only — the API decides, plan 0007 step 6).</param>
     public static IServiceCollection AddEnrollmentInfrastructure(
         this IServiceCollection services, string connectionString, KvkkText kvkkText, GuardianLoginKey loginKey,
-        NetgsmOptions? netgsm)
+        NetgsmOptions? netgsm, GuardianLoginTiming? timing = null)
     {
+        services.AddSingleton(timing ?? GuardianLoginTiming.Default);
         services.AddDbContext<EnrollmentDbContext>(options => options.UseNpgsql(connectionString, ConfigureNpgsql));
         services.AddDbContext<GuardianLoginDbContext>(options => options.UseNpgsql(connectionString, ConfigureLoginNpgsql));
         services.AddScoped<IGuardianStore, GuardianStore>();
