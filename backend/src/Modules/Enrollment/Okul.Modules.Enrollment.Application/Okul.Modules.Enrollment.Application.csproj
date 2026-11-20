@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\Okul.Modules.Enrollment.Domain\Okul.Modules.Enrollment.Domain.csproj" />
+    <ProjectReference Include="..\Okul.Modules.Enrollment.Contracts\Okul.Modules.Enrollment.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\Core\Okul.Core\Okul.Core.csproj" />
+  </ItemGroup>
+</Project>

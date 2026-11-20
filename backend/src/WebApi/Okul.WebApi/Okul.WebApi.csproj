@@ -19,8 +19,6 @@
     <ProjectReference Include="..\..\Modules\Institution\Okul.Modules.Institution.Application\Okul.Modules.Institution.Application.csproj" />
     <ProjectReference Include="..\..\Modules\Institution\Okul.Modules.Institution.Infrastructure\Okul.Modules.Institution.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Modules\Identity\Okul.Modules.Identity.Infrastructure\Okul.Modules.Identity.Infrastructure.csproj" />
-    <!-- Spec 0007 step 2: domain + contracts only; Infrastructure replaces these in step 3 (plan 0007). -->
-    <ProjectReference Include="..\..\Modules\Enrollment\Okul.Modules.Enrollment.Domain\Okul.Modules.Enrollment.Domain.csproj" />
-    <ProjectReference Include="..\..\Modules\Enrollment\Okul.Modules.Enrollment.Contracts\Okul.Modules.Enrollment.Contracts.csproj" />
+    <ProjectReference Include="..\..\Modules\Enrollment\Okul.Modules.Enrollment.Infrastructure\Okul.Modules.Enrollment.Infrastructure.csproj" />
   </ItemGroup>
 </Project>

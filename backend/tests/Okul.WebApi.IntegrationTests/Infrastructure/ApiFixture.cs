@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Okul.Core.Tenancy;
+using Okul.Modules.Enrollment.Infrastructure.Persistence;
 using Okul.Modules.Identity.Application;
 using Okul.Modules.Identity.Domain;
 using Okul.Modules.Identity.Infrastructure.Persistence;
@@ -90,6 +91,12 @@ public sealed class ApiFixture : IAsyncLifetime
             await scope.ServiceProvider.GetRequiredService<LoginThrottleDbContext>().Database.MigrateAsync();
             await IdentitySampleData.SeedAsync(
                 identity, SamplePassword, scope.ServiceProvider.GetRequiredService<ITwoFactorSecretProtector>().Protect(TwoFactorSecret));
+
+            // Spec 0007: the sample veliler and the tenant-free login state (plan 0007, A-1).
+            var enrollment = scope.ServiceProvider.GetRequiredService<EnrollmentDbContext>();
+            await enrollment.Database.MigrateAsync();
+            await scope.ServiceProvider.GetRequiredService<GuardianLoginDbContext>().Database.MigrateAsync();
+            await EnrollmentSampleData.SeedAsync(enrollment, TimeProvider.System);
         }
         catch
         {

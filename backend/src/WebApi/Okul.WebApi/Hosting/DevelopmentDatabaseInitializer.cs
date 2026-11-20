@@ -1,11 +1,12 @@
 using Microsoft.EntityFrameworkCore;
+using Okul.Modules.Enrollment.Infrastructure.Persistence;
 using Okul.Modules.Identity.Infrastructure.Persistence;
 using Okul.Modules.Institution.Infrastructure.Persistence;
 
 namespace Okul.WebApi.Hosting;
 
 /// <summary>
-/// Development only: applies migrations and writes the sample kurums and — when <c>Dev:SamplePassword</c> is set in
+/// Development only: applies migrations and writes the sample kurums, the sample veliler (spec 0007) and — when <c>Dev:SamplePassword</c> is set in
 /// user-secrets — the sample staff accounts (spec 0003; plan 0003, R8: no password in the repo, none → no accounts).
 /// A hosted service (not code before <c>app.Run</c>) so build-time OpenAPI generation never touches a database.
 /// </summary>
@@ -27,6 +28,8 @@ internal sealed class DevelopmentDatabaseInitializer : IHostedService
 
         var institutions = scope.ServiceProvider.GetRequiredService<InstitutionDbContext>();
         await InstitutionSampleData.SeedAsync(institutions, cancellationToken);
+        await EnrollmentSampleData.SeedAsync(
+            scope.ServiceProvider.GetRequiredService<EnrollmentDbContext>(), TimeProvider.System, cancellationToken);
 
         var samplePassword = _configuration["Dev:SamplePassword"];
         if (!string.IsNullOrWhiteSpace(samplePassword))
@@ -43,5 +46,7 @@ internal sealed class DevelopmentDatabaseInitializer : IHostedService
         await services.GetRequiredService<InstitutionDbContext>().Database.MigrateAsync(cancellationToken);
         await services.GetRequiredService<IdentityDbContext>().Database.MigrateAsync(cancellationToken);
         await services.GetRequiredService<LoginThrottleDbContext>().Database.MigrateAsync(cancellationToken);
+        await services.GetRequiredService<EnrollmentDbContext>().Database.MigrateAsync(cancellationToken);
+        await services.GetRequiredService<GuardianLoginDbContext>().Database.MigrateAsync(cancellationToken);
     }
 }

@@ -17,6 +17,8 @@
   <Folder Name="/src/Modules/Enrollment/">
     <Project Path="src/Modules/Enrollment/Okul.Modules.Enrollment.Domain/Okul.Modules.Enrollment.Domain.csproj" />
     <Project Path="src/Modules/Enrollment/Okul.Modules.Enrollment.Contracts/Okul.Modules.Enrollment.Contracts.csproj" />
+    <Project Path="src/Modules/Enrollment/Okul.Modules.Enrollment.Application/Okul.Modules.Enrollment.Application.csproj" />
+    <Project Path="src/Modules/Enrollment/Okul.Modules.Enrollment.Infrastructure/Okul.Modules.Enrollment.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/src/WebApi/">
     <Project Path="src/WebApi/Okul.WebApi/Okul.WebApi.csproj" />

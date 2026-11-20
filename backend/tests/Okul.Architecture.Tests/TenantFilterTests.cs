@@ -34,10 +34,13 @@ public sealed class TenantFilterTests
     /// <summary>
     /// The module DbContexts allowed to be tenant-free, BY NAME (plan 0003, R4): failed-login state must exist before
     /// any tenant is known. Anything else that derives from plain <see cref="DbContext"/> fails here — a new tenant-free
-    /// context needs its own decision.
+    /// context needs its own decision. Veli login codes and failure state: plan 0007, A-1 (spec 0007, K3/G-3).
     /// </summary>
     private static readonly string[] TenantFreeAllowList =
-        ["Okul.Modules.Identity.Infrastructure.Persistence.LoginThrottleDbContext"];
+    [
+        "Okul.Modules.Identity.Infrastructure.Persistence.LoginThrottleDbContext",
+        "Okul.Modules.Enrollment.Infrastructure.Persistence.GuardianLoginDbContext",
+    ];
 
     [Fact]
     public void EveryModuleDbContext_IsTenantScoped_OrNamedInTheAllowList()

@@ -741,11 +741,27 @@
           "Microsoft.EntityFrameworkCore.Relational": "[10.0.15, )"
         }
       },
+      "okul.modules.enrollment.application": {
+        "type": "Project",
+        "dependencies": {
+          "Okul.Core": "[1.0.0, )",
+          "Okul.Modules.Enrollment.Contracts": "[1.0.0, )",
+          "Okul.Modules.Enrollment.Domain": "[1.0.0, )"
+        }
+      },
       "okul.modules.enrollment.contracts": {
         "type": "Project"
       },
       "okul.modules.enrollment.domain": {
         "type": "Project"
+      },
+      "okul.modules.enrollment.infrastructure": {
+        "type": "Project",
+        "dependencies": {
+          "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.3, )",
+          "Okul.Modules.Enrollment.Application": "[1.0.0, )",
+          "Okul.Modules.Enrollment.Domain": "[1.0.0, )"
+        }
       },
       "okul.modules.identity.application": {
         "type": "Project",
@@ -809,8 +825,7 @@
         "dependencies": {
           "Microsoft.AspNetCore.Authentication.JwtBearer": "[10.0.15, )",
           "Microsoft.AspNetCore.OpenApi": "[10.0.15, )",
-          "Okul.Modules.Enrollment.Contracts": "[1.0.0, )",
-          "Okul.Modules.Enrollment.Domain": "[1.0.0, )",
+          "Okul.Modules.Enrollment.Infrastructure": "[1.0.0, )",
           "Okul.Modules.Identity.Infrastructure": "[1.0.0, )",
           "Okul.Modules.Institution.Application": "[1.0.0, )",
           "Okul.Modules.Institution.Infrastructure": "[1.0.0, )",
