@@ -31,7 +31,18 @@
   bilinmeyen hesapta da sahte bir doğrulama çalışır. Test girişi yalnızca Development/Testing'de, OpenAPI dışında.
 - **İlk yönetici (üretim):** `dotnet Okul.WebApi.dll create-admin --kurum-kodu <kod> --e-posta <adres>`; şifre standart
   girdiden okunur (terminalde ekrana yansımadan; pipe ile secret manager'dan da verilebilir), komut satırına yazılmaz ve hiçbir yerde yazdırılmaz (veritabanı önceden migrate edilmiş olmalı).
-- 2FA (TOTP) **Kurucu/Yönetici ve Muhasebe için zorunlu**, Öğretmen için isteğe bağlı.
+- 2FA (TOTP) **Kurucu/Yönetici ve Muhasebe için zorunlu**, Öğretmen için isteğe bağlı (spec 0004): rollerden biri zorunluysa
+  zorunlu; RFC 6238, 6 hane / 30 sn, ±1 pencere, kabul edilen adım bir daha kabul edilmez. Doğru şifreden sonra oturum
+  değil 5 dakikalık bir ara adım (opak belirteç, veri açmaz); zorunlu ve kurulmamış hesap kurulumu tamamlamadan veri
+  göremez. Kurtarma kodları: 10 tek kullanımlık `XXXX-XXXX`, bir kez gösterilir. Yanlış kodlar ve şifre değiştirmedeki
+  yanlış mevcut şifre giriş kilidiyle aynı sayaca eklenir (B-11); kaynak sınırı kod adımlarını da kapsar.
+- **`Auth:TwoFactorKey`** (base64, 32 bayt; `Auth:SigningKey` gibi gizli yapılandırma): 2FA anahtarı AES-GCM ile bu
+  anahtarla şifreli, kurtarma kodları bundan türetilen anahtarla HMAC özeti olarak saklanır — veritabanı kopyası tek
+  başına ne anahtarı açar ne kodu dener. Üretimde yoksa uygulama açılmaz; **kaybolursa bütün 2FA kurulumları okunamaz**
+  (her hesap `reset-2fa` ile sıfırlanır). Geliştirme/Test'te tanımsızsa her açılışta geçici anahtar.
+- **2FA sıfırlama (operasyon):** `dotnet Okul.WebApi.dll reset-2fa --kurum-kodu <kod> --e-posta <adres>` — 2FA ve
+  kurtarma kodlarını siler, hesabın bütün oturumlarını ve ara adımlarını kapatır; yalnızca sonucu ve kapanan oturum
+  sayısını yazar. Sunucuya erişim yetkidir; kim, ne zaman çalıştırdı kaydı audit log spec'iyle gelir.
 - Giriş ve OTP'de rate limit + hesap kilitleme. Personel girişi (spec 0003): aynı kurum kodu + e-posta için 5 hata /
   15 dk → 15 dk kilit (var olmayan hesapta da aynı); kaynak başına dakikada 20 deneme. TLS sonlandıran proxy arkasında
   kaynak adresi için B-4.

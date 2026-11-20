@@ -71,7 +71,7 @@ step 7). Nothing lands here without that decision; noise is rejected in the tria
   Source: spec 0002, VERIFY bulgu 1 — Severity: low — Recommendation: `VerifyServerAsync`'in sonucu işlediğini sınayan
   bir ek nokta + test; davranış bugün gözlemle kanıtlı (collation adı değişince testler koşmadan açık mesajla düşer) —
   Deferred by: kullanıcı, 2026-11-19, VERIFY triage
-- **B-11** — Şifre değiştirmede "mevcut şifre" denemeleri sınırsız: ele geçirilmiş bir oturumla şifre kilitlenmeden tahmin
+- **B-11** — **Kapandı (spec 0004, 2026-11-20):** yanlış mevcut şifre giriş kilidine bağlandı, kilitliyken 429 ve "Çok fazla başarısız deneme…" — Şifre değiştirmede "mevcut şifre" denemeleri sınırsız: ele geçirilmiş bir oturumla şifre kilitlenmeden tahmin
   edilip değiştirilebilir — Source: spec 0003, review round 1 #4 (`Okul.Modules.Identity.Application/ChangePassword.cs`,
   `/auth/password`) — Severity: medium — Recommendation: mevcut şifre doğrulaması giriş kilidine (kurum + e-posta anahtarı)
   bağlansın, kilitliyken 429 + "Çok fazla başarısız deneme…" (yeni ekran durumu → spec değişikliği); spec 0004 (2FA) ile —

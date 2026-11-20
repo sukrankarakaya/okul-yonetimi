@@ -28,6 +28,10 @@
   parolası her koşuda rastgele. Hesabı kilitleyen veya değiştiren testler kendi hesabını açar (`CreateAccountAsync`),
   örnek hesaplara dokunmaz. Saat gerektiren testler (`LockoutAndRateLimitTests`, `SessionLifetimeTests`) kendi
   factory'lerini `FakeTimeProvider` ile kurar; rate limit testi kendi limitini verir (varsayılan factory'de sınır yok).
+- **2FA test yardımcıları (spec 0004, plan R5):** `ApiFixture` zorunlu örnek hesapları bilinen bir anahtarla 2FA'lı
+  tohumlar; `LoginWebAsync` / `LoginMobileAsync` ara adımı **o girişe özel eklenen bir kurtarma koduyla** tamamlar (paralel
+  testler aynı 30 sn kodu için yarışmaz). TOTP yolu 2FA testlerinde taze hesaplarla (`CreateAccountAsync(setUpTwoFactor)`)
+  ve `FakeTimeProvider` + `CodeAt` / `CodeFromKey` ile kanıtlanır.
 - Süreler (spec 0001, A-4 sonrası, bu makine): fast ≈ 80 s (8 adım), full ≈ 125–190 s (temiz kurulum sonrası soğuk ilk koşu ≈ 190 s). Fast'te tam `dotnet format` yok —
   biçim (IDE0055) derlemede zorunlu; `using` sırası full'deki `backend-format`'ta. ESLint `--cache` ve `tsc --incremental`
   önbellekleri `node_modules/.cache/` altında (ilk çalıştırma soğuk). Proje `C:\dev\okul-yonetimi`'de (OneDrive senkronu
