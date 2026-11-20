@@ -496,6 +496,25 @@
           "Okul.Modules.Institution.Domain": "[1.0.0, )"
         }
       },
+      "okul.modules.parents.application": {
+        "type": "Project",
+        "dependencies": {
+          "NArchitecture.Core.Mediator": "[2.0.0, )",
+          "Okul.Modules.Parents.Domain": "[1.0.0, )"
+        }
+      },
+      "okul.modules.parents.domain": {
+        "type": "Project"
+      },
+      "okul.modules.parents.infrastructure": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.EntityFrameworkCore": "[10.0.15, )",
+          "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.3, )",
+          "Okul.Modules.Parents.Application": "[1.0.0, )",
+          "Okul.Modules.Parents.Domain": "[1.0.0, )"
+        }
+      },
       "okul.webapi": {
         "type": "Project",
         "dependencies": {
@@ -504,6 +523,7 @@
           "Okul.Modules.Identity.Infrastructure": "[1.0.0, )",
           "Okul.Modules.Institution.Application": "[1.0.0, )",
           "Okul.Modules.Institution.Infrastructure": "[1.0.0, )",
+          "Okul.Modules.Parents.Infrastructure": "[1.0.0, )",
           "QRCoder": "[1.8.1, )"
         }
       },

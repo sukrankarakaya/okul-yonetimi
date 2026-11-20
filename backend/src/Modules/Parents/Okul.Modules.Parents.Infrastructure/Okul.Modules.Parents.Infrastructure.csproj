@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" PrivateAssets="all" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Okul.Modules.Parents.Domain\Okul.Modules.Parents.Domain.csproj" />
+    <ProjectReference Include="..\Okul.Modules.Parents.Application\Okul.Modules.Parents.Application.csproj" />
+    <ProjectReference Include="..\..\..\..\Core\Okul.Core\Okul.Core.csproj" />
+  </ItemGroup>
+</Project>

@@ -18,5 +18,6 @@
     <ProjectReference Include="..\..\Modules\Institution\Okul.Modules.Institution.Application\Okul.Modules.Institution.Application.csproj" />
     <ProjectReference Include="..\..\Modules\Institution\Okul.Modules.Institution.Infrastructure\Okul.Modules.Institution.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Modules\Identity\Okul.Modules.Identity.Infrastructure\Okul.Modules.Identity.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Modules\Parents\Okul.Modules.Parents.Infrastructure\Okul.Modules.Parents.Infrastructure.csproj" />
   </ItemGroup>
 </Project>
