@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using System.Net;
 using Okul.Modules.Identity.Domain;
 using Okul.Modules.Institution.Infrastructure.Persistence;
@@ -36,8 +38,9 @@ public sealed class ResetTwoFactorTests
         output.ToString().Trim().ShouldBe("İki adımlı doğrulama sıfırlandı. Kapanan oturum: 2.");
         (await mobile.GetAsync(MineRoute, ct)).StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
         (await web.GetAsync(MineRoute, ct)).StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
-        // The open step and the unused kurtarma kodu are gone (review round 1 L-2); the next login sets up again.
+        // The open step is closed (review round 1 L-2) and every kurtarma kodu is deleted (review round 2 I-a).
         await ShouldAnswerAsync(await VerifyAsync(open, pending.Step, null, unused), HttpStatusCode.Unauthorized, Auth.AuthEndpoints.StepEndedMessage);
+        (await RecoveryCodeCountAsync(admin)).ShouldBe(0);
         await StepAsync(_api.Testing.CreateClient(), _api, admin, "setup");
     }
 
@@ -68,6 +71,16 @@ public sealed class ResetTwoFactorTests
 
         output.ToString().ShouldContain("Bu kurumda bu e-posta ile bir hesap yok.");
         await StepAsync(_api.Testing.CreateClient(), _api, admin, "verify"); // still set up
+    }
+
+    private async Task<int> RecoveryCodeCountAsync(Modules.Identity.Infrastructure.Persistence.IdentitySampleData.SampleAccount account)
+    {
+        await using var scope = _api.Testing.Services.CreateAsyncScope();
+        using (scope.ServiceProvider.GetRequiredService<Okul.Core.Tenancy.ITenantScope>().Begin(account.TenantId))
+        {
+            return await scope.ServiceProvider.GetRequiredService<Modules.Identity.Infrastructure.Persistence.IdentityDbContext>()
+                .RecoveryCodes.CountAsync(c => c.AccountId == account.Id, TestContext.Current.CancellationToken);
+        }
     }
 
     private Task<int> Run(string email, TextWriter output) =>

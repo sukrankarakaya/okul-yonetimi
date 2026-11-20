@@ -132,6 +132,33 @@ public sealed class TwoFactorSetupTests
         (await VerifyAsync(client, next.Step, null, codes[9])).StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
+    /// <summary>Review round 2 L-1 — an older setup step cannot overwrite a confirmed setup: refused, and the first codes keep working.</summary>
+    [Fact]
+    public async Task OlderSetupStep_AfterAConfirmedOne_IsRefused()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+        await using var factory = _api.CreateFactory(DevAuthEndpoints.TestingEnvironment, clock);
+        var admin = await _api.CreateAccountAsync(InstitutionSampleData.WithCampusesId, setUpTwoFactor: false, StaffRoles.Administrator);
+        var first = factory.CreateClient();
+        var second = factory.CreateClient();
+        var firstStep = await StepAsync(first, _api, admin, "setup");
+        var secondStep = await StepAsync(second, _api, admin, "setup");
+        var firstKey = (await StartSetupAsync(first, firstStep.Step)).Key;
+        var secondKey = (await StartSetupAsync(second, secondStep.Step)).Key;
+
+        var confirmed = await ConfirmAsync(first, firstStep.Step, ApiFixture.CodeFromKey(firstKey, clock.GetUtcNow()));
+        var codes = (await confirmed.Content.ReadFromJsonAsync<SetupCompletedResponse>(ct))!.RecoveryCodes;
+
+        await ShouldAnswerAsync(await ConfirmAsync(second, secondStep.Step, ApiFixture.CodeFromKey(secondKey, clock.GetUtcNow())),
+            HttpStatusCode.Unauthorized, AuthEndpoints.StepEndedMessage);
+        var login = factory.CreateClient();
+        (await VerifyAsync(login, (await StepAsync(login, _api, admin, "verify")).Step, null, codes[0])).StatusCode.ShouldBe(HttpStatusCode.OK);
+        clock.Advance(TimeSpan.FromSeconds(30));
+        (await VerifyAsync(login, (await StepAsync(login, _api, admin, "verify")).Step, ApiFixture.CodeFromKey(firstKey, clock.GetUtcNow())))
+            .StatusCode.ShouldBe(HttpStatusCode.OK); // still the first key
+    }
+
     [Fact]
     public async Task RecoveryCodes_ShownOnce_NeverAgain()
     {

@@ -99,6 +99,29 @@ public sealed class TwoFactorSettingsTests
             HttpStatusCode.BadRequest, AuthEndpoints.StepEndedMessage);
     }
 
+    /// <summary>Review round 2 L-1 — two "aç" steps: once one is confirmed, the other is refused and the first codes stay.</summary>
+    [Fact]
+    public async Task OlderEnableStep_AfterAConfirmedOne_IsRefused()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+        await using var factory = _api.CreateFactory(DevAuthEndpoints.TestingEnvironment, clock);
+        var teacher = await _api.CreateAccountAsync(InstitutionSampleData.WithCampusesId, StaffRoles.Teacher);
+        var (client, _) = await _api.LoginMobileAsync(teacher, factory);
+        var a = (await (await client.PostAsync(StatusRoute + "/enable", null, ct)).Content.ReadFromJsonAsync<TwoFactorEnableResponse>(ct))!;
+        var b = (await (await client.PostAsync(StatusRoute + "/enable", null, ct)).Content.ReadFromJsonAsync<TwoFactorEnableResponse>(ct))!;
+
+        var confirmed = await client.PostAsJsonAsync(StatusRoute + "/enable/confirm",
+            new VerifyLoginRequest(a.Step, ApiFixture.CodeFromKey(a.Key, clock.GetUtcNow()), null), ct);
+        var codes = (await confirmed.Content.ReadFromJsonAsync<RecoveryCodesResponse>(ct))!.RecoveryCodes;
+
+        await ShouldAnswerAsync(await client.PostAsJsonAsync(StatusRoute + "/enable/confirm",
+            new VerifyLoginRequest(b.Step, ApiFixture.CodeFromKey(b.Key, clock.GetUtcNow()), null), ct),
+            HttpStatusCode.BadRequest, AuthEndpoints.StepEndedMessage);
+        var login = factory.CreateClient();
+        (await VerifyAsync(login, (await StepAsync(login, _api, teacher, "verify")).Step, null, codes[0])).StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
     [Fact]
     public async Task WrongCode_DoesNotDisable()
     {
