@@ -103,7 +103,7 @@ describe('api-client login answers', () => {
     [400, undefined, 'network'],
     [500, undefined, 'network'],
     [403, undefined, 'network'],
-    [429, undefined, 'network'],
+    [429, undefined, 'locked'], // spec 0004 (B-11): wrong current passwords lock like the login (A-2)
   ])('change password maps HTTP %i (code %s) to %s (VERIFY round 1 F-2)', async (status, code, result) => {
     const { fetch } = backend({ 'POST /api/v1/auth/password': [() => json(status, { detail: 'x', code })] });
     const client = createOkulClient({ baseUrl: 'http://api.test', kind: 'web', fetch });
@@ -153,5 +153,77 @@ describe('api-client session renewal', () => {
     const client = createOkulClient({ baseUrl: 'http://api.test', kind: 'web', fetch });
 
     expect((await client.getMyInstitution()).kind).toBe('ok');
+  });
+});
+
+/** Spec 0004 — the api-client's 2FA answers: only the API's own codes are the user's; anything else is "Bağlantı kurulamadı". */
+describe('api-client two-step login', () => {
+  const step = 'tenant.step.secret';
+  const client = (routes: Record<string, (() => Response)[]>) =>
+    createOkulClient({ baseUrl: 'http://api.test', kind: 'web', fetch: backend(routes).fetch });
+
+  it.each([
+    ['verify', { kind: 'verify', step }],
+    ['setup', { kind: 'setup', step }],
+  ])('login answers 202 %s with the step', async (next, expected) => {
+    const c = client({ 'POST /api/v1/auth/login': [() => json(202, { next, step, stepExpiresAt: '2026-11-20T10:05:00Z' })] });
+
+    expect(await c.login('ATATURK-IST', 'a@b.test', 'dogru-sifre-123')).toEqual(expected);
+  });
+
+  it.each([
+    [200, session, 'ok'],
+    [401, { code: 'invalid_code' }, 'invalidCode'],
+    [401, { code: 'step_ended' }, 'stepEnded'],
+    [429, { code: 'too_many_attempts' }, 'locked'],
+    [500, undefined, 'network'],
+    [401, undefined, 'network'],
+  ])('verify maps HTTP %i (%o) to %s, by code and by recovery code', async (status, body, kind) => {
+    const c = client({ 'POST /api/v1/auth/login/verify': [() => json(status, body), () => json(status, body)] });
+
+    expect((await c.verifyLogin(step, '123456')).kind).toBe(kind);
+    expect((await c.verifyWithRecoveryCode(step, 'K7Q2-9XMD')).kind).toBe(kind);
+  });
+
+  it('setup: starts with the key and QR, confirms with the recovery codes, or reports the ended step', async () => {
+    const c = client({
+      'POST /api/v1/auth/login/setup': [() => json(200, { key: 'JBSWY3DP', qrCode: 'data:image/png;base64,AA' }), () => json(401, { code: 'step_ended' })],
+      'POST /api/v1/auth/login/setup/confirm': [() => json(200, { session, recoveryCodes: ['K7Q2-9XMD'] }), () => json(401, { code: 'invalid_code' })],
+    });
+
+    expect(await c.startSetup(step)).toEqual({ kind: 'ok', key: 'JBSWY3DP', qrCode: 'data:image/png;base64,AA' });
+    expect(await c.startSetup(step)).toEqual({ kind: 'stepEnded' });
+    expect(await c.confirmSetup(step, '123456')).toEqual({ kind: 'ok', roles: ['Teacher'], recoveryCodes: ['K7Q2-9XMD'] });
+    expect((await c.confirmSetup(step, '000000')).kind).toBe('invalidCode');
+  });
+
+  it('cancel never fails, even when the server is unreachable', async () => {
+    const c = createOkulClient({ baseUrl: 'http://api.test', kind: 'web', fetch: vi.fn(async () => { throw new TypeError('offline'); }) });
+
+    await expect(c.cancelLogin(step)).resolves.toBeUndefined();
+  });
+
+  it.each([
+    [204, undefined, { kind: 'ok' }],
+    [200, { recoveryCodes: ['K7Q2-9XMD'] }, { kind: 'ok', recoveryCodes: ['K7Q2-9XMD'] }],
+    [400, { code: 'invalid_code' }, { kind: 'invalidCode' }],
+    [403, { code: 'two_factor_mandatory' }, { kind: 'notAllowed' }],
+    [429, { code: 'too_many_attempts' }, { kind: 'locked' }],
+    [502, undefined, { kind: 'network' }],
+  ])('Güvenlik changes map HTTP %i to %o', async (status, body, expected) => {
+    const c = client({ 'POST /api/v1/auth/two-factor/disable': [() => json(status, body)] });
+
+    expect(await c.disableTwoFactor('123456')).toEqual(expected);
+  });
+
+  it('reads the Güvenlik status, and reports an ended session', async () => {
+    const status = { enabled: true, required: true, canDisable: false, remainingRecoveryCodes: 3 };
+    const c = client({
+      'GET /api/v1/auth/two-factor': [() => json(200, status), () => json(401)],
+      'POST /api/v1/auth/refresh': [() => json(401)],
+    });
+
+    expect(await c.getTwoFactor()).toEqual({ kind: 'ok', status });
+    expect(await c.getTwoFactor()).toEqual({ kind: 'unauthenticated' });
   });
 });

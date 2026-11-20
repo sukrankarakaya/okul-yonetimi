@@ -19,6 +19,10 @@ export type InstitutionResult =
 /** Giriş (spec 0003, User experience): one answer per state, never which field was wrong. */
 export type LoginResult =
   | { kind: 'ok'; roles: string[] }
+  /** Spec 0004: the password was right; a code completes the login (Doğrulama). */
+  | { kind: 'verify'; step: string }
+  /** Spec 0004: the password was right; 2FA must be set up first (Kurulum). */
+  | { kind: 'setup'; step: string }
   | { kind: 'invalid' }
   | { kind: 'locked' }
   | { kind: 'network' };
@@ -28,8 +32,35 @@ export type ChangePasswordResult =
   | 'currentWrong'
   | 'tooShort'
   | 'mismatch'
+  /** Spec 0004 (B-11): wrong current passwords count towards the login lock. */
+  | 'locked'
   | 'unauthenticated'
   | 'network';
+
+/** A code step (Doğrulama, Kurulum onayı, Güvenlik): the spec 0004 answers. */
+export type CodeRefusal = { kind: 'invalidCode' } | { kind: 'locked' } | { kind: 'stepEnded' } | { kind: 'network' };
+
+export type VerifyResult = { kind: 'ok'; roles: string[] } | CodeRefusal;
+
+export type SetupStartResult = { kind: 'ok'; key: string; qrCode: string } | { kind: 'stepEnded' } | { kind: 'network' };
+
+export type SetupConfirmResult = { kind: 'ok'; roles: string[]; recoveryCodes: string[] } | CodeRefusal;
+
+export type TwoFactorStatus = components['schemas']['TwoFactorStatusResponse'];
+
+export type TwoFactorStatusResult = { kind: 'ok'; status: TwoFactorStatus } | { kind: 'unauthenticated' } | { kind: 'network' };
+
+export type EnableStartResult =
+  | { kind: 'ok'; step: string; key: string; qrCode: string }
+  | { kind: 'unauthenticated' }
+  | { kind: 'network' };
+
+/** Güvenlik changes: `recoveryCodes` when new ones were made; `notAllowed` = mandatory for the role. */
+export type TwoFactorChangeResult =
+  | { kind: 'ok'; recoveryCodes?: string[] }
+  | CodeRefusal
+  | { kind: 'notAllowed' }
+  | { kind: 'unauthenticated' };
 
 /** Mobile only: where access + refresh live — the device's secure store (spec 0003, Requirement 8). */
 export interface TokenStore {
@@ -64,6 +95,18 @@ export interface OkulClient {
   hasSession(): Promise<boolean>;
   getMyInstitution(): Promise<InstitutionResult>;
   changePassword(current: string, next: string, nextAgain: string): Promise<ChangePasswordResult>;
+  /** Spec 0004 — the login step: a 6-digit code, or a kurtarma kodu instead. */
+  verifyLogin(step: string, code: string): Promise<VerifyResult>;
+  verifyWithRecoveryCode(step: string, recoveryCode: string): Promise<VerifyResult>;
+  startSetup(step: string): Promise<SetupStartResult>;
+  confirmSetup(step: string, code: string): Promise<SetupConfirmResult>;
+  /** "Vazgeç": the step can never be used again. Never fails. */
+  cancelLogin(step: string): Promise<void>;
+  getTwoFactor(): Promise<TwoFactorStatusResult>;
+  startEnableTwoFactor(): Promise<EnableStartResult>;
+  confirmEnableTwoFactor(step: string, code: string): Promise<TwoFactorChangeResult>;
+  disableTwoFactor(code: string): Promise<TwoFactorChangeResult>;
+  renewRecoveryCodes(code: string): Promise<TwoFactorChangeResult>;
 }
 
 /** The header the API requires on cookie-authenticated state-changing requests (backend `SessionCookies`). */
@@ -182,7 +225,10 @@ export function createOkulClient(options: OkulClientOptions): OkulClient {
         const { data, response } = await api.POST('/api/v1/auth/login', {
           body: { institutionCode, email, password, client: options.kind },
         });
-        if (response.ok && data) {
+        if (response.status === 202 && data && 'next' in data) {
+          return data.next === 'setup' ? { kind: 'setup', step: data.step } : { kind: 'verify', step: data.step };
+        }
+        if (response.ok && data && 'roles' in data) {
           await remember(data);
           return { kind: 'ok', roles: data.roles };
         }
@@ -253,7 +299,116 @@ export function createOkulClient(options: OkulClientOptions): OkulClient {
         if (code === 'password_too_short') return 'tooShort';
         if (code === 'password_mismatch') return 'mismatch';
       }
-      return 'network';
+      return response.status === 429 ? 'locked' : 'network';
+    },
+
+    async verifyLogin(step, code) {
+      return verify({ step, code, recoveryCode: null });
+    },
+
+    async verifyWithRecoveryCode(step, recoveryCode) {
+      return verify({ step, code: null, recoveryCode });
+    },
+
+    async startSetup(step) {
+      try {
+        const { data, response } = await api.POST('/api/v1/auth/login/setup', { body: { step } });
+        if (response.ok && data) {
+          return { kind: 'ok', key: data.key, qrCode: data.qrCode };
+        }
+        return response.status === 401 ? { kind: 'stepEnded' } : { kind: 'network' };
+      } catch {
+        return { kind: 'network' };
+      }
+    },
+
+    async confirmSetup(step, code) {
+      try {
+        const { data, response, error } = await api.POST('/api/v1/auth/login/setup/confirm', { body: { step, code, recoveryCode: null } });
+        if (response.ok && data) {
+          await remember(data.session);
+          return { kind: 'ok', roles: data.session.roles, recoveryCodes: data.recoveryCodes };
+        }
+        return refusal(response, error);
+      } catch {
+        return { kind: 'network' };
+      }
+    },
+
+    async cancelLogin(step) {
+      try {
+        await api.POST('/api/v1/auth/login/cancel', { body: { step } });
+      } catch {
+        // "Vazgeç" always returns to Giriş; an unreachable server lets the step expire on its own (5 minutes).
+      }
+    },
+
+    async getTwoFactor() {
+      const outcome = await withSession(() => api.GET('/api/v1/auth/two-factor'));
+      if ('network' in outcome) return { kind: 'network' };
+      if ('ended' in outcome) return { kind: 'unauthenticated' };
+      const { data, response } = outcome.result;
+      return response.ok && data ? { kind: 'ok', status: data } : { kind: 'network' };
+    },
+
+    async startEnableTwoFactor() {
+      const outcome = await withSession(() => api.POST('/api/v1/auth/two-factor/enable'));
+      if ('network' in outcome) return { kind: 'network' };
+      if ('ended' in outcome) return { kind: 'unauthenticated' };
+      const { data, response } = outcome.result;
+      return response.ok && data ? { kind: 'ok', step: data.step, key: data.key, qrCode: data.qrCode } : { kind: 'network' };
+    },
+
+    async confirmEnableTwoFactor(step, code) {
+      return change(() => api.POST('/api/v1/auth/two-factor/enable/confirm', { body: { step, code, recoveryCode: null } }));
+    },
+
+    async disableTwoFactor(code) {
+      return change(() => api.POST('/api/v1/auth/two-factor/disable', { body: { code } }));
+    },
+
+    async renewRecoveryCodes(code) {
+      return change(() => api.POST('/api/v1/auth/two-factor/recovery-codes', { body: { code } }));
     },
   };
+
+  async function verify(body: { step: string; code: string | null; recoveryCode: string | null }): Promise<VerifyResult> {
+    try {
+      const { data, response, error } = await api.POST('/api/v1/auth/login/verify', { body });
+      if (response.ok && data) {
+        await remember(data);
+        return { kind: 'ok', roles: data.roles };
+      }
+      return refusal(response, error);
+    } catch {
+      return { kind: 'network' };
+    }
+  }
+
+  /**
+   * Only the API's own codes are the user's: `invalid_code` → "Kod hatalı…", `step_ended` → back to Giriş, 429 → locked.
+   * Anything else (5xx, an unknown answer) is "Bağlantı kurulamadı" — never "Kod hatalı" (spec 0003 review round 1 #7).
+   */
+  function refusal(response: Response, error: unknown): CodeRefusal {
+    const code = (error as { code?: string } | undefined)?.code;
+    if (response.status === 429) return { kind: 'locked' };
+    if (code === 'invalid_code') return { kind: 'invalidCode' };
+    if (code === 'step_ended') return { kind: 'stepEnded' };
+    return { kind: 'network' };
+  }
+
+  async function change<T extends { response: Response; data?: unknown; error?: unknown }>(
+    send: () => Promise<T>,
+  ): Promise<TwoFactorChangeResult> {
+    const outcome = await withSession(send);
+    if ('network' in outcome) return { kind: 'network' };
+    if ('ended' in outcome) return { kind: 'unauthenticated' };
+    const { response, data, error } = outcome.result;
+    if (response.ok) {
+      const codes = (data as { recoveryCodes?: string[] } | undefined)?.recoveryCodes;
+      return codes ? { kind: 'ok', recoveryCodes: codes } : { kind: 'ok' };
+    }
+    if (response.status === 403) return { kind: 'notAllowed' };
+    return refusal(response, error);
+  }
 }

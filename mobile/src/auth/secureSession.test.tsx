@@ -82,7 +82,7 @@ describe('secure session (mobile)', () => {
     [400, 'current_password_wrong', 'currentWrong'],
     [500, undefined, 'network'],
     [403, undefined, 'network'],
-    [429, undefined, 'network'],
+    [429, undefined, 'locked'], // spec 0004 (B-11): wrong current passwords lock like the login (A-2)
   ])('change password maps HTTP %i (code %s) to %s (VERIFY round 1 F-2)', async (status, code, result) => {
     const storage = memoryStorage();
     await storage.setItemAsync('okul.session', JSON.stringify({ accessToken: 'access-1', refreshToken: 'refresh-1' }));
@@ -91,6 +91,20 @@ describe('secure session (mobile)', () => {
 
     expect(await client.changePassword('eski-sifre-123', 'yeni-sifre-1234', 'yeni-sifre-1234')).toBe(result);
     expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('a completed 2FA step keeps the tokens in the secure store, never the step itself (spec 0004)', async () => {
+    const storage = memoryStorage();
+    const fetch = jest.fn(async (input: RequestInfo | URL) => {
+      const url = (input as Request).url;
+      return url.endsWith('/auth/login') ? json(202, { next: 'verify', step: 't.s.secret', stepExpiresAt: '2026-11-20T10:05:00Z' }) : json(200, session);
+    });
+    const client = createOkulClient({ baseUrl: 'http://api.test', kind: 'mobile', tokenStore: secureTokenStore(storage), fetch });
+
+    expect(await client.login('ATATURK-IST', 'a@b.test', 'dogru-sifre-123')).toEqual({ kind: 'verify', step: 't.s.secret' });
+    expect(storage.items.size).toBe(0);
+    expect((await client.verifyLogin('t.s.secret', '123456')).kind).toBe('ok');
+    expect(JSON.parse(storage.items.get('okul.session')!)).toEqual({ accessToken: 'access-1', refreshToken: 'refresh-1' });
   });
 
   it('logout clears the secure store', async () => {
