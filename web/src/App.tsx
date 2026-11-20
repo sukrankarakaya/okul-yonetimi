@@ -1,8 +1,14 @@
 import { createOkulClient, type OkulClient } from '@okul/api-client';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { InstitutionPage } from './features/institution/InstitutionPage';
+import type { CodeOutcome } from './features/login/CodeForm';
+import { codeTexts } from './features/login/CodeForm';
 import { LoginPage, loginTexts } from './features/login/LoginPage';
+import { RecoveryCodesStep } from './features/login/RecoveryCodesStep';
+import { SetupStep } from './features/login/SetupStep';
+import { VerifyStep } from './features/login/VerifyStep';
 import { ChangePasswordPage, passwordTexts } from './features/password/ChangePasswordPage';
+import { SecurityPage, securityTexts } from './features/security/SecurityPage';
 
 const baseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:5080';
 
@@ -25,6 +31,12 @@ export function createWebClient(fetchImpl?: typeof fetch): OkulClient {
 type Screen =
   | { kind: 'checking' }
   | { kind: 'login'; notice?: string }
+  // Spec 0004 — the step after a right password, and the Güvenlik screens.
+  | { kind: 'verify'; step: string }
+  | { kind: 'setup'; step: string }
+  | { kind: 'enable' }
+  | { kind: 'recovery'; codes: string[]; next: 'institution' | 'security'; notice?: string }
+  | { kind: 'security'; notice?: string }
   | { kind: 'institution'; notice?: string }
   | { kind: 'password' };
 
@@ -49,6 +61,25 @@ export function App({ client: injected }: { client?: OkulClient } = {}) {
     (expired: boolean) => setScreen({ kind: 'login', notice: expired ? loginTexts.expired : undefined }),
     [],
   );
+  const stepEnded = useCallback(() => setScreen({ kind: 'login', notice: codeTexts.stepEnded }), []);
+  const loadStatus = useCallback(() => client.getTwoFactor(), [client]);
+
+  // Setup at login, or an Öğretmen turning it on from Güvenlik (the enable step comes with the load).
+  const setupStep = screen.kind === 'setup' ? screen.step : null;
+  const loadSetup = useCallback(() => client.startSetup(setupStep ?? ''), [client, setupStep]);
+  const enableStep = useRef<string>('');
+  const loadEnable = useCallback(async () => {
+    const result = await client.startEnableTwoFactor();
+    if (result.kind === 'ok') {
+      enableStep.current = result.step;
+    }
+    return result;
+  }, [client]);
+  const toSecurity = useCallback(() => setScreen({ kind: 'security' }), []);
+  const enableEnded = useCallback(
+    (outcome: CodeOutcome) => (outcome.kind === 'unauthenticated' ? sessionEnded(true) : toSecurity()),
+    [sessionEnded, toSecurity],
+  );
 
   switch (screen.kind) {
     case 'checking':
@@ -62,6 +93,67 @@ export function App({ client: injected }: { client?: OkulClient } = {}) {
         <LoginPage
           login={(code, email, password) => client.login(code, email, password)}
           onLoggedIn={() => setScreen({ kind: 'institution' })}
+          onStep={(next, step) => setScreen({ kind: next, step })}
+          notice={screen.notice}
+        />
+      );
+    case 'verify':
+      return (
+        <VerifyStep
+          verify={(code) => client.verifyLogin(screen.step, code)}
+          verifyWithRecoveryCode={(code) => client.verifyWithRecoveryCode(screen.step, code)}
+          onVerified={() => setScreen({ kind: 'institution' })}
+          onStepEnded={stepEnded}
+          onCancel={() => {
+            void client.cancelLogin(screen.step);
+            setScreen({ kind: 'login' });
+          }}
+        />
+      );
+    case 'setup':
+      return (
+        <SetupStep
+          load={loadSetup}
+          confirm={(code) => client.confirmSetup(screen.step, code)}
+          onConfirmed={(codes) => setScreen({ kind: 'recovery', codes, next: 'institution' })}
+          onEnded={stepEnded}
+          onCancel={() => {
+            void client.cancelLogin(screen.step);
+            setScreen({ kind: 'login' });
+          }}
+        />
+      );
+    case 'enable':
+      return (
+        <SetupStep
+          load={loadEnable}
+          confirm={async (code) => {
+            const result = await client.confirmEnableTwoFactor(enableStep.current, code);
+            return result.kind === 'ok' ? { kind: 'ok', recoveryCodes: result.recoveryCodes ?? [] } : result;
+          }}
+          onConfirmed={(codes) => setScreen({ kind: 'recovery', codes, next: 'security' })}
+          onEnded={enableEnded}
+          onCancel={toSecurity}
+        />
+      );
+    case 'recovery':
+      return (
+        <RecoveryCodesStep
+          codes={screen.codes}
+          notice={screen.notice}
+          onContinue={() => setScreen(screen.next === 'security' ? { kind: 'security' } : { kind: 'institution' })}
+        />
+      );
+    case 'security':
+      return (
+        <SecurityPage
+          loadStatus={loadStatus}
+          renewRecoveryCodes={(code) => client.renewRecoveryCodes(code)}
+          disableTwoFactor={(code) => client.disableTwoFactor(code)}
+          onRenewed={(codes) => setScreen({ kind: 'recovery', codes, next: 'security', notice: securityTexts.renewed })}
+          onEnable={() => setScreen({ kind: 'enable' })}
+          onSessionEnded={() => sessionEnded(true)}
+          onBack={() => setScreen({ kind: 'institution' })}
           notice={screen.notice}
         />
       );
@@ -81,6 +173,7 @@ export function App({ client: injected }: { client?: OkulClient } = {}) {
           notice={screen.notice}
           onSessionEnded={sessionEnded}
           onChangePassword={() => setScreen({ kind: 'password' })}
+          onSecurity={() => setScreen({ kind: 'security' })}
           onLogout={() => {
             void client.logout().finally(() => setScreen({ kind: 'login' }));
           }}

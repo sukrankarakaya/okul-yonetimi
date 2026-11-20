@@ -20,13 +20,15 @@ type Field = 'code' | 'email' | 'password';
 export interface LoginPageProps {
   login: (institutionCode: string, email: string, password: string) => Promise<LoginResult>;
   onLoggedIn: () => void;
+  /** Spec 0004: the password was right; the code step (Doğrulama) or the setup (Kurulum) follows. */
+  onStep?: (next: 'verify' | 'setup', step: string) => void;
   /** Shown above the form, e.g. after a session ended. */
   notice?: string;
   initialCode?: string;
   initialEmail?: string;
 }
 
-export function LoginPage({ login, onLoggedIn, notice, initialCode = '', initialEmail = '' }: LoginPageProps) {
+export function LoginPage({ login, onLoggedIn, onStep, notice, initialCode = '', initialEmail = '' }: LoginPageProps) {
   const id = useId();
   const [values, setValues] = useState<Record<Field, string>>({ code: initialCode, email: initialEmail, password: '' });
   const [missing, setMissing] = useState<Field[]>([]);
@@ -51,6 +53,10 @@ export function LoginPage({ login, onLoggedIn, notice, initialCode = '', initial
     switch (result.kind) {
       case 'ok':
         onLoggedIn();
+        return;
+      case 'verify':
+      case 'setup':
+        onStep?.(result.kind, result.step);
         return;
       case 'invalid':
         setValues((v) => ({ ...v, password: '' }));

@@ -82,6 +82,87 @@ describe('App (web)', () => {
   });
 });
 
+describe('App (web) — spec 0004 two-step login', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+
+  async function signIn(user: ReturnType<typeof userEvent.setup>) {
+    await user.type(await screen.findByLabelText('Kurum kodu'), 'ATATURK-IST');
+    await user.type(screen.getByLabelText('E-posta'), 'yonetici@ataturk.test');
+    await user.type(screen.getByLabelText('Şifre'), 'dogru-sifre-123');
+    await user.click(screen.getByRole('button', { name: 'Giriş yap' }));
+  }
+
+  it('right password → Doğrulama → code → Kurum bilgisi (with Güvenlik); nothing in browser storage', async () => {
+    const user = userEvent.setup();
+    const { fetch, calls } = backend({
+      'GET /api/v1/auth/session': [() => json(401)],
+      'POST /api/v1/auth/refresh': [() => json(401)],
+      'POST /api/v1/auth/login': [() => json(202, { next: 'verify', step: 't.s.secret', stepExpiresAt: '2026-11-20T10:05:00Z' })],
+      'POST /api/v1/auth/login/verify': [() => json(200, session)],
+      'GET /api/v1/institution/me': [() => json(200, institution)],
+    });
+    render(<App client={createOkulClient({ baseUrl: 'http://api.test', kind: 'web', fetch })} />);
+
+    await signIn(user);
+    expect(await screen.findByRole('heading', { name: 'İki adımlı doğrulama' })).toBeInTheDocument();
+    await user.type(screen.getByLabelText('Doğrulama kodu'), '123456{Enter}');
+
+    expect(await screen.findByRole('heading', { name: 'Atatürk Koleji' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Güvenlik' })).toBeInTheDocument();
+    expect(calls).toContain('POST /api/v1/auth/login/verify');
+    expect([localStorage.length, sessionStorage.length]).toEqual([0, 0]);
+  });
+
+  it('an expired step returns to Giriş with "Doğrulama süresi doldu, tekrar giriş yapın."; "Vazgeç" ends the step', async () => {
+    const user = userEvent.setup();
+    const { fetch, calls } = backend({
+      'GET /api/v1/auth/session': [() => json(401)],
+      'POST /api/v1/auth/refresh': [() => json(401)],
+      'POST /api/v1/auth/login': [
+        () => json(202, { next: 'verify', step: 't.s.one', stepExpiresAt: '2026-11-20T10:05:00Z' }),
+        () => json(202, { next: 'verify', step: 't.s.two', stepExpiresAt: '2026-11-20T10:05:00Z' }),
+      ],
+      'POST /api/v1/auth/login/verify': [() => json(401, { code: 'step_ended' })],
+      'POST /api/v1/auth/login/cancel': [() => json(204)],
+    });
+    render(<App client={createOkulClient({ baseUrl: 'http://api.test', kind: 'web', fetch })} />);
+
+    await signIn(user);
+    await user.type(await screen.findByLabelText('Doğrulama kodu'), '123456{Enter}');
+    expect(await screen.findByText('Doğrulama süresi doldu, tekrar giriş yapın.')).toBeInTheDocument();
+
+    await signIn(user);
+    await user.click(await screen.findByRole('button', { name: 'Vazgeç' }));
+    expect(await screen.findByRole('heading', { name: 'Giriş' })).toBeInTheDocument();
+    expect(calls).toContain('POST /api/v1/auth/login/cancel');
+  });
+
+  it('mandatory first login: Kurulum → Kurtarma kodları → Kurum bilgisi', async () => {
+    const user = userEvent.setup();
+    const { fetch } = backend({
+      'GET /api/v1/auth/session': [() => json(401)],
+      'POST /api/v1/auth/refresh': [() => json(401)],
+      'POST /api/v1/auth/login': [() => json(202, { next: 'setup', step: 't.s.secret', stepExpiresAt: '2026-11-20T10:05:00Z' })],
+      'POST /api/v1/auth/login/setup': [() => json(200, { key: 'JBSWY3DPEHPK3PXP', qrCode: 'data:image/png;base64,iVBORw0KGgo=' })],
+      'POST /api/v1/auth/login/setup/confirm': [() => json(200, { session, recoveryCodes: ['K7Q2-9XMD', 'P4TR-2HWA'] })],
+      'GET /api/v1/institution/me': [() => json(200, institution)],
+    });
+    render(<App client={createOkulClient({ baseUrl: 'http://api.test', kind: 'web', fetch })} />);
+
+    await signIn(user);
+    expect(await screen.findByText('JBSWY3DPEHPK3PXP')).toBeInTheDocument();
+    await user.type(screen.getByLabelText('Doğrulama kodu'), '123456{Enter}');
+    expect(await screen.findByRole('heading', { name: 'Kurtarma kodlarınız' })).toBeInTheDocument();
+    expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual(['K7Q2-9XMD', 'P4TR-2HWA']);
+    await user.click(screen.getByRole('button', { name: 'Kaydettim, devam et' }));
+
+    expect(await screen.findByRole('heading', { name: 'Atatürk Koleji' })).toBeInTheDocument();
+  });
+});
+
 describe('api-client login answers', () => {
   it.each([
     [401, 'invalid'],
