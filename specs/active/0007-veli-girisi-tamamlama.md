@@ -1,9 +1,9 @@
 # Spec 0007 — Veli girişini uçtan uca tamamlama: telefon + SMS kodu, KVKK rızası
 
-- Status: Draft
+- Status: Approved
 - Mode: lite
 - Plan: `specs/plans/0007-plan.md`
-- Self-critique: pending (G-1–G-5 kullanıcı onayı bekliyor)
+- Self-critique: done
 
 ## Intent
 Spec 0005 veli girişini tanımladı ve `specs/done/`'a taşındı; ancak kodda uçtan uca çalışmıyor: veli uç noktası,
@@ -23,10 +23,11 @@ Bilinçli olarak yapılmayan: çocuk/öğrenci verisi (0006), veli yönetim aray
 3. Kod 6 haneli, rastgele, **tek kullanımlık** ve 5 dakika geçerlidir; yeni kod istenince önceki geçersiz olur;
    boşluklar yok sayılır (K2 — 0005'teki 30 sn pencere modeli kullanılmaz).
 4. Kaba kuvvet: aynı kurum + telefon için art arda 5 yanlış kod → 15 dakika kilit (kilitliyken doğru kod de oturum
-   açmaz; 0003 Requirement 4'ün sayaç kuralları). Aynı kurum + telefon için dakikada en fazla 3 kod isteği; aynı
-   kaynaktan dakikada en fazla 20 giriş denemesi.
+   açmaz; 0003 Requirement 4'ün sayaç kuralları); kilit kayıtlı olmayan numarada da aynı biçimde görünür (K3, G-3).
+   Aynı kurum + telefon için dakikada en fazla 3 kod isteği, "tekrar gönder" dahil (G-2); aynı kaynaktan dakikada en
+   fazla 20 giriş denemesi.
 5. SMS üretimde Netgsm ile gönderilir; geliştirme ve testte gerçek SMS gitmez. Sağlayıcı geçici hatada 3 kez
-   yeniden denenir, sonra kullanıcıya hata gösterilir.
+   denenir, denemelerin toplamı en fazla 10 saniyedir; sonra kullanıcıya hata gösterilir (G-4).
 6. KVKK: rızası olmayan veli (ilk giriş, ya da aydınlatma metninin sürümü değiştiyse — K6) önce rıza ekranını görür;
    rıza verilene kadar hiçbir kurum verisi dönmez ve sunucu da reddeder. Rıza kaydı: veli, kurum, metin sürümü, zaman.
 7. Oturum 0003 kurallarıyla yaşar: erişim 15 dk, sessiz yenileme, üst sınır web 12 saat / mobil 30 gün, kullanılmış
@@ -44,7 +45,7 @@ Bilinçli olarak yapılmayan: çocuk/öğrenci verisi (0006), veli yönetim aray
 ## User experience
 - **Flow:** Giriş ekranı → "Veli girişi" → **Telefon** (kurum kodu + telefon) → "SMS kodu gönder" → **SMS kodu** →
   (rızasız) **KVKK** → "Devam et" → veli ana ekranı (0006; o gelene kadar mevcut Kurum bilgisi ekranı). Mobilde kurum
-  kodu cihazda hatırlanır.
+  kodu cihazda hatırlanır ve çıkışta silinmez; telefon numarası ve kod hiç hatırlanmaz (G-5).
 - **States — Telefon:** başlık "Veli Girişi", alanlar "Kurum kodu", "Telefon numarası", düğme "SMS kodu gönder".
   - *Boş alan:* "Bu alan gerekli." · *Geçersiz telefon:* "Lütfen geçerli bir telefon numarası girin."
   - *Gönderiliyor:* düğme devre dışı, "SMS kodu gönderiliyor..."
@@ -55,6 +56,8 @@ Bilinçli olarak yapılmayan: çocuk/öğrenci verisi (0006), veli yönetim aray
   - *Boş:* "Bu alan gerekli." · *Doğrulanıyor:* düğme devre dışı, "Doğrulanıyor..."
   - *Hatalı / kullanılmış kod:* "Kod hatalı veya süresi geçmiş." (alan temizlenir)
   - *Süresi doldu:* "Kodun süresi doldu. Yeni kod isteyin." · *Kilitli:* "Çok fazla başarısız deneme. 15 dakika sonra tekrar deneyin."
+  - *Tekrar gönder hız sınırında:* bağlantı devre dışı + "Çok sık kod istediniz. 1 dakika sonra tekrar deneyin." (G-2)
+  - *Vazgeç:* bekleyen kod iptal edilir, Telefon ekranına dönülür; kurum kodu ve telefon alanlarda kalır (G-1).
 - **States — KVKK:** başlık "KVKK Aydınlatması", metin (yapılandırmadan, sürümlü), onay kutusu "Verilerimin işlenmesine
   rıza veriyorum", düğme "Devam et". *İşaretsiz:* düğme devre dışı + "Lütfen rıza onayını işaretleyin." *Başarılı:* rıza kaydedilir, ana ekran.
 - **States — oturum:** *süresi doldu:* Veli Girişi ekranı, üstte "Oturumunuzun süresi doldu, tekrar giriş yapın." *Çıkış:* Veli Girişi ekranı.
@@ -79,14 +82,14 @@ Bilinçli olarak yapılmayan: çocuk/öğrenci verisi (0006), veli yönetim aray
 
 ## Acceptance criteria
 - [ ] AC-1 — Kurum kodu + kayıtlı telefonla kod istenince SMS (testte sahte sağlayıcıda) 6 haneli kodla gider ve SMS kodu ekranı açılır; kayıtlı olmayan numara ve bilinmeyen kurum kodu aynı yanıtı alır ve SMS gitmez; farklı yazılmış aynı numara (`0532…`, `+90 532…`) aynı veliyi bulur; geçersiz numara "Lütfen geçerli bir telefon numarası girin."
-- [ ] AC-2 — Doğru kod 5 dakika içinde oturum açar; yanlış kod "Kod hatalı veya süresi geçmiş."; 5 dakikadan sonra "Kodun süresi doldu…"; kullanılmış kod ve yeni kod istendikten sonra eski kod reddedilir; boşluklu kod kabul edilir.
-- [ ] AC-3 — 5 yanlış kod 15 dakika kilitler, kilitliyken doğru kod reddedilir, 15 dakika sonra açılır; aynı kurum + telefon için dakikadaki 4. kod isteği hız sınırı mesajını alır; aynı kaynaktan dakikadaki 21. deneme reddedilir.
+- [ ] AC-2 — Doğru kod 5 dakika içinde oturum açar; yanlış kod "Kod hatalı veya süresi geçmiş."; 5 dakikadan sonra "Kodun süresi doldu…"; kullanılmış kod, yeni kod istendikten sonra eski kod ve "Vazgeç" sonrası bekleyen kod reddedilir; "Vazgeç" Telefon ekranına alanları koruyarak döner; boşluklu kod kabul edilir.
+- [ ] AC-3 — 5 yanlış kod 15 dakika kilitler, kilitliyken doğru kod reddedilir, 15 dakika sonra açılır; kayıtlı olmayan numarada 5 yanlış kod aynı kilit yanıtını alır; aynı kurum + telefon için dakikadaki 4. kod isteği ("tekrar gönder" dahil) hız sınırı mesajını alır; aynı kaynaktan dakikadaki 21. deneme reddedilir.
 - [ ] AC-4 — Rızası olmayan veli doğrulamadan sonra KVKK ekranını görür; işaretsiz "Devam et" kapalıdır; rıza sonrası veli, kurum, metin sürümü ve zaman kaydedilir; rıza olmadan kurum verisi istekleri sunucuda reddedilir; rızalı veli ekranı görmez; metin sürümü değişince yeniden sorulur.
 - [ ] AC-5 — Veli oturumu 0003 kurallarıyla yenilenir (sessiz yenileme, tek yenileme, web 12 sa / mobil 30 gün üst sınır, tekrar kullanılan yenileme bilgisi oturumu kapatır); çıkıştan sonraki ilk istek reddedilir.
 - [ ] AC-6 — Veli oturumu personel işlemlerine, personel oturumu veli işlemlerine erişemez; iki kurumda kayıtlı aynı telefon iki ayrı veli hesabıdır ve bir kurumun oturumu diğerinin verisine erişemez.
 - [ ] AC-7 — Kayıtlı velinin ilk başarılı girişi hesap oluşturur, sonraki girişler aynı hesabı kullanır; sıfırlama komutu velinin oturumlarını kapatır ve kilidini kaldırır, olmayan veli için açık hata verir, gizli veri yazdırmaz.
-- [ ] AC-8 — Kod veritabanında okunamaz; kod ve tam telefon hiçbir log, hata yanıtı ve çıktıda yoktur; geliştirme/testte gerçek SMS gitmez; sağlayıcı 3 denemede de başarısızsa "SMS gönderilemedi. Tekrar deneyin."
-- [ ] AC-9 — Web ve mobilde Giriş ekranındaki "Veli girişi" bağlantısıyla Telefon, SMS kodu ve KVKK ekranlarına ulaşılır; User experience'taki her durum kendi metniyle görünür; erişilebilirlik maddeleri sağlanır.
+- [ ] AC-8 — Kod veritabanında okunamaz; kod ve tam telefon hiçbir log, hata yanıtı ve çıktıda yoktur; geliştirme/testte gerçek SMS gitmez; sağlayıcı 3 denemede de başarısızsa en geç 10 saniyede "SMS gönderilemedi. Tekrar deneyin."
+- [ ] AC-9 — Web ve mobilde Giriş ekranındaki "Veli girişi" bağlantısıyla Telefon, SMS kodu ve KVKK ekranlarına ulaşılır; User experience'taki her durum kendi metniyle görünür; mobilde kurum kodu çıkıştan sonra da dolu gelir, telefon ve kod hatırlanmaz; erişilebilirlik maddeleri sağlanır.
 
 ## Definition of Done
 - [ ] Every acceptance criterion mapped to proof (test or reproducible observation)
@@ -106,12 +109,13 @@ Bilinçli olarak yapılmayan: çocuk/öğrenci verisi (0006), veli yönetim aray
 - **K8** Sıfırlama komutu bu spec'te.
 - **SIZE:** 9 kriter, tek yetenek (veli girişi); bölme önerilmedi.
 
-## Self-critique (onay bekliyor — her biri önerimle)
-- **G-1 "Vazgeç" ne yapar?** *Öneri:* SMS kodu ekranından Telefon ekranına döner ve bekleyen kodu iptal eder; girilen kurum kodu ve telefon alanlarda kalır.
-- **G-2 "SMS kodunu tekrar gönder" hız sınırına sayılır mı?** *Öneri:* evet, dakikada 3 isteğin içinde; sınırdayken bağlantı devre dışı ve hız sınırı mesajı.
-- **G-3 Kilit kayıtlı olmayan numarayı ele verir mi?** K3'le, kayıtlı olmayan numara da SMS kodu ekranına geçer. *Öneri:* orada 5 yanlış kod da aynı kilit mesajını gösterir (0003'teki "var olmayan hesap" kuralı); AC-3'e eklenir.
-- **G-4 Sağlayıcı yeniden denemeleri ne kadar sürer?** 0005'te "< 10 sn" vardı. *Öneri:* üç denemenin toplamı en fazla 10 sn; sonra hata mesajı. Kullanıcı en fazla 10 sn bekler.
-- **G-5 Mobilde hatırlanan kurum kodu çıkışta silinir mi?** *Öneri:* hayır, 0003'teki gibi kalır; telefon numarası ve kod hiç hatırlanmaz.
+## Self-critique
+Onaylandı (kullanıcı, 2026-11-20) ve yukarıya işlendi:
+- G-1 "Vazgeç" bekleyen kodu iptal eder, alanları korur (UX, AC-2).
+- G-2 "Tekrar gönder" dakikada 3 isteğe sayılır (Requirement 4, UX, AC-3).
+- G-3 Kilit kayıtlı olmayan numarada da aynı görünür (Requirement 4, AC-3).
+- G-4 Sağlayıcı denemeleri toplam en fazla 10 sn (Requirement 5, AC-8).
+- G-5 Mobilde kurum kodu çıkışta silinmez; telefon ve kod hatırlanmaz (UX, AC-9).
 
 ## Scorecard (fill at ship — honest numbers make the process improvable)
 | Metric | Value |
