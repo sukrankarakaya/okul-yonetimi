@@ -340,6 +340,17 @@ public sealed class OkulApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("ConnectionStrings:Okul", _connectionString);
         builder.UseSetting("Auth:SigningKey", _signingKey);
         builder.UseSetting("Auth:TwoFactorKey", _twoFactorKey);
+        // Spec 0007: the veli login key, as the 2FA key; outside Development/Testing the API demands Netgsm (Requirement 5)
+        // — these accounts are never called: no test outside Testing sends an SMS.
+        builder.UseSetting("Auth:GuardianCodeKey", Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)));
+        if (_environment is not ("Development" or DevAuthEndpoints.TestingEnvironment))
+        {
+            builder.UseSetting("Sms:Provider", "Netgsm");
+            builder.UseSetting("Sms:Netgsm:UserCode", "test-yok");
+            builder.UseSetting("Sms:Netgsm:Password", "test-yok");
+            builder.UseSetting("Sms:Netgsm:SenderId", "TEST");
+        }
+
         if (_loginsPerMinute is { } loginsPerMinute)
         {
             builder.UseSetting("Auth:LoginRateLimitPerMinute", loginsPerMinute.ToString(System.Globalization.CultureInfo.InvariantCulture));

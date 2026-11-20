@@ -15,5 +15,8 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Modules\Enrollment\Okul.Modules.Enrollment.Domain\Okul.Modules.Enrollment.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Enrollment\Okul.Modules.Enrollment.Application\Okul.Modules.Enrollment.Application.csproj" />
+    <!-- The keyed hasher and the Netgsm client are pure — tested here, no database (as Kimlik's 2FA crypto). -->
+    <ProjectReference Include="..\..\src\Modules\Enrollment\Okul.Modules.Enrollment.Infrastructure\Okul.Modules.Enrollment.Infrastructure.csproj" />
   </ItemGroup>
 </Project>

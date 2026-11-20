@@ -4,6 +4,7 @@ using NArchitecture.Core.Mediator.DependencyInjection;
 using Okul.Core.Tenancy;
 using Okul.Modules.Enrollment.Application;
 using Okul.Modules.Enrollment.Infrastructure;
+using Okul.Modules.Enrollment.Infrastructure.Sms;
 using Okul.Modules.Identity.Application;
 using Okul.Modules.Identity.Contracts;
 using Okul.Modules.Identity.Infrastructure;
@@ -90,7 +91,9 @@ var connectionString = builder.Configuration.GetConnectionString("Okul");
 services.AddInstitutionInfrastructure(connectionString ?? string.Empty);
 services.AddEnrollmentInfrastructure(
     connectionString ?? string.Empty,
-    KvkkText.Create(builder.Configuration["Kvkk:TextVersion"], builder.Configuration["Kvkk:Text"]));
+    KvkkText.Create(builder.Configuration["Kvkk:TextVersion"], builder.Configuration["Kvkk:Text"]),
+    GuardianLoginKeyFromConfiguration(builder.Configuration, builder.Environment),
+    NetgsmFromConfiguration(builder.Configuration, builder.Environment));
 services.AddIdentityInfrastructure(
     connectionString ?? string.Empty, TwoFactorKeyFromConfiguration(builder.Configuration, builder.Environment));
 
@@ -159,6 +162,43 @@ static TwoFactorKey TwoFactorKeyFromConfiguration(IConfiguration configuration, 
     }
 
     throw new InvalidOperationException("Auth:TwoFactorKey is not configured.");
+}
+
+// Spec 0007: the key of the veli login hashes — as Auth:TwoFactorKey, a random one only where the test login is allowed.
+static GuardianLoginKey GuardianLoginKeyFromConfiguration(IConfiguration configuration, IHostEnvironment environment)
+{
+    var configured = configuration["Auth:GuardianCodeKey"];
+    if (!string.IsNullOrWhiteSpace(configured))
+    {
+        return new GuardianLoginKey(Convert.FromBase64String(configured));
+    }
+
+    if (DevAuthEndpoints.IsAllowedIn(environment))
+    {
+        return new GuardianLoginKey(System.Security.Cryptography.RandomNumberGenerator.GetBytes(GuardianLoginKey.Length));
+    }
+
+    throw new InvalidOperationException("Auth:GuardianCodeKey is not configured.");
+}
+
+// Spec 0007, Requirement 5: real SMS only through Netgsm; the fake sender never outside Development and Testing.
+static NetgsmOptions? NetgsmFromConfiguration(IConfiguration configuration, IHostEnvironment environment)
+{
+    var section = configuration.GetSection("Sms:Netgsm");
+    if (string.Equals(configuration["Sms:Provider"], "Netgsm", StringComparison.OrdinalIgnoreCase))
+    {
+        return new NetgsmOptions(
+            section["UserCode"] ?? throw new InvalidOperationException("Sms:Netgsm:UserCode is not configured."),
+            section["Password"] ?? throw new InvalidOperationException("Sms:Netgsm:Password is not configured."),
+            section["SenderId"] ?? throw new InvalidOperationException("Sms:Netgsm:SenderId is not configured."));
+    }
+
+    if (DevAuthEndpoints.IsAllowedIn(environment))
+    {
+        return null;
+    }
+
+    throw new InvalidOperationException("Sms:Provider must be Netgsm outside Development and Testing.");
 }
 
 /// <summary>Entry point marker for WebApplicationFactory (integration tests).</summary>

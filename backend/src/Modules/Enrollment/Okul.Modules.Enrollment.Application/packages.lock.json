@@ -2,6 +2,15 @@
   "version": 2,
   "dependencies": {
     "net10.0": {
+      "NArchitecture.Core.Mediator": {
+        "type": "Direct",
+        "requested": "[2.0.0, )",
+        "resolved": "2.0.0",
+        "contentHash": "u0q+S1uooGUqoJShpzNSiiOvjRpT/RjltnKTEzBXqfo8my8zFGBN0IUIP56ZZKQABT9M7bV6JbHk10XoTaabKg==",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.13"
+        }
+      },
       "Microsoft.EntityFrameworkCore.Abstractions": {
         "type": "Transitive",
         "resolved": "10.0.15",
@@ -95,6 +104,12 @@
         "type": "Project"
       },
       "okul.modules.enrollment.domain": {
+        "type": "Project"
+      },
+      "okul.modules.identity.contracts": {
+        "type": "Project"
+      },
+      "okul.modules.institution.contracts": {
         "type": "Project"
       },
       "Microsoft.EntityFrameworkCore": {

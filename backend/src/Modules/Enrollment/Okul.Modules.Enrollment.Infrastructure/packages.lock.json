@@ -276,15 +276,24 @@
       "okul.modules.enrollment.application": {
         "type": "Project",
         "dependencies": {
+          "NArchitecture.Core.Mediator": "[2.0.0, )",
           "Okul.Core": "[1.0.0, )",
           "Okul.Modules.Enrollment.Contracts": "[1.0.0, )",
-          "Okul.Modules.Enrollment.Domain": "[1.0.0, )"
+          "Okul.Modules.Enrollment.Domain": "[1.0.0, )",
+          "Okul.Modules.Identity.Contracts": "[1.0.0, )",
+          "Okul.Modules.Institution.Contracts": "[1.0.0, )"
         }
       },
       "okul.modules.enrollment.contracts": {
         "type": "Project"
       },
       "okul.modules.enrollment.domain": {
+        "type": "Project"
+      },
+      "okul.modules.identity.contracts": {
+        "type": "Project"
+      },
+      "okul.modules.institution.contracts": {
         "type": "Project"
       },
       "Microsoft.EntityFrameworkCore": {
@@ -309,6 +318,15 @@
           "Microsoft.Extensions.Caching.Memory": "10.0.15",
           "Microsoft.Extensions.Configuration.Abstractions": "10.0.15",
           "Microsoft.Extensions.Logging": "10.0.15"
+        }
+      },
+      "NArchitecture.Core.Mediator": {
+        "type": "CentralTransitive",
+        "requested": "[2.0.0, )",
+        "resolved": "2.0.0",
+        "contentHash": "u0q+S1uooGUqoJShpzNSiiOvjRpT/RjltnKTEzBXqfo8my8zFGBN0IUIP56ZZKQABT9M7bV6JbHk10XoTaabKg==",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.13"
         }
       },
       "Npgsql": {

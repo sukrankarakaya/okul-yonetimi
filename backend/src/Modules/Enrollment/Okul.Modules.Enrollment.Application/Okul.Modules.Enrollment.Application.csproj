@@ -1,7 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
+    <PackageReference Include="NArchitecture.Core.Mediator" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\Okul.Modules.Enrollment.Domain\Okul.Modules.Enrollment.Domain.csproj" />
     <ProjectReference Include="..\Okul.Modules.Enrollment.Contracts\Okul.Modules.Enrollment.Contracts.csproj" />
+    <!-- Other modules only through their contracts (docs/architecture.md, Forbidden dependencies 1; ADR 0002). -->
+    <ProjectReference Include="..\..\Identity\Okul.Modules.Identity.Contracts\Okul.Modules.Identity.Contracts.csproj" />
+    <ProjectReference Include="..\..\Institution\Okul.Modules.Institution.Contracts\Okul.Modules.Institution.Contracts.csproj" />
     <ProjectReference Include="..\..\..\Core\Okul.Core\Okul.Core.csproj" />
   </ItemGroup>
 </Project>
