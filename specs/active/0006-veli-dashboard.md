@@ -1,6 +1,6 @@
 # Spec 0006 — Veli ana ekranı: çocuk listesi
 
-- Status: Draft
+- Status: Approved
 - Mode: lite
 - Plan: `specs/plans/0006-plan.md`
 - Self-critique: done
