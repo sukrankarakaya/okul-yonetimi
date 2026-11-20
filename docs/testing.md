@@ -21,7 +21,7 @@
   `--filter-trait "Category=Integration"` (full). `--ignore-exit-code 8` yalnızca "bu test uygulaması sıfır test
   çalıştırdı" kodunu yok sayar (her proje diğer profilin testlerini içermez); toplam sayı çıktıda görünür.
 - Test sayıları (spec 0003 BUILD + spec 0002 merge sonrası): backend fast 132 (Kurum birim 32 + Kimlik birim 44 +
-  WebApi/Core birim 8 + test veritabanı yardımcıları 31 + mimari 17), entegrasyon 68, web 27, mobil 24. WebApi/Core ve
+  WebApi/Core birim 8 + test veritabanı yardımcıları 31 + mimari 17), entegrasyon 68, web 41, mobil 34 (spec 0003 ship). WebApi/Core ve
   test veritabanı birim testleri: `backend/tests/Okul.WebApi.UnitTests`. **Entegrasyon projesine trait'siz test konmaz**
   (T-13: assembly fixture'ı her test için kurulur, fast profil veritabanı açar).
 - Kimlik entegrasyon testleri gerçek girişle oturum açar (`ApiFixture.LoginMobileAsync` / `LoginWebAsync`); örnek hesap
@@ -65,6 +65,24 @@
   6. Doğrula: `psql $env:OKUL_TEST_PG -c "SELECT collname FROM pg_collation WHERE collname = 'tr-TR-x-icu'"` parola
      sormadan (pgpass okundu) bir satır döner — Git Bash'te `psql "$OKUL_TEST_PG" …`. Sonra Git Bash'te
      `./scripts/doctor` → `profile full: runnable` (Docker kapalıyken de).
+- **Kurulum (macOS, bir kez — Terminal'de, zsh):** parola hiçbir komut satırına yazılmaz. Proje iCloud'la
+  senkronlanan klasörlere (Masaüstü/Belgeler) konmaz (`bin/`, `obj/`, `node_modules/`).
+  1. Araçlar: `brew install gh` + `brew install --cask dotnet-sdk@10` (`global.json` 10.0.404; 11.x SDK onu
+     karşılamaz) + Node 24+. PostgreSQL 18: **Postgres.app** (ICU içerir; Homebrew `postgresql@18` aynı portta
+     çakışır — ikisini birden çalıştırma).
+  2. `~/.zshrc`: `export PATH="/Applications/Postgres.app/Contents/Versions/18/bin:$PATH"` ve
+     `export OKUL_TEST_PG="postgresql://okul_test@localhost:5432/postgres"`; sonra `exec zsh`.
+  3. Test rolü (süper kullanıcı değil): `psql -h localhost -d postgres` içinde
+     `CREATE ROLE okul_test LOGIN CREATEDB;` ve `\password okul_test` (parola sorulur).
+  4. Postgres.app yerel bağlantılara varsayılan olarak `trust` + izin penceresi uygular; test rolü için parola
+     zorunlu olsun (Windows'taki pgpass düzeniyle aynı, pencere çıkmaz): `~/Library/Application Support/Postgres/var-18/pg_hba.conf`
+     dosyasının **başına** `host all okul_test 127.0.0.1/32 scram-sha-256` ve `host all okul_test ::1/128 scram-sha-256`
+     satırları, sonra `psql -h localhost -d postgres -c "select pg_reload_conf()"`.
+  5. pgpass: `touch ~/.pgpass && chmod 600 ~/.pgpass && open -e ~/.pgpass` — tek satır
+     `localhost:5432:*:okul_test:<parola>` (600 değilse libpq dosyayı yok sayar).
+  6. Doğrula: `psql "$OKUL_TEST_PG" -w -Atc "select rolsuper, rolcreatedb from pg_roles where rolname = current_user"`
+     → `f|t`; `… "select collname from pg_collation where collname = 'tr-TR-x-icu'"` → bir satır;
+     `… "show server_encoding"` → `UTF8`. Sonra `npm ci` ve `./scripts/doctor` → `profile full: runnable`.
 - Aynı sunucuda iki entegrasyon koşusu aynı anda koşabilir (her biri kendi veritabanında); biri diğerinin 60 dk'dan
   eski veritabanlarını süpürebilir, bu beklenen davranıştır.
 - Sweep "silinemedi, atlandı" uyarısı verirse (ör. `42809`: kesilmiş bir test koşusundan kalan şablon veritabanı),
