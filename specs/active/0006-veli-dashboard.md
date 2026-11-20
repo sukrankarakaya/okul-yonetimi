@@ -11,7 +11,7 @@ bağı henüz yok. Bu spec, veli ana ekranının ilk dilimidir: veli girişten s
 çocuklarını (ad, sınıf/şube, fotoğraf) görür, birden çok çocuğu varsa birini seçer, profil menüsünden çıkış yapar.
 Bunun için asgari öğrenci kaydı ve veli–öğrenci bağı oluşturulur. Kurum için bu ekran satış kancasının ilk yüzüdür
 (`docs/kapsam.md`). Başarı: veli yalnızca kendi çocuklarını görür, her durum (yükleniyor, boş, hata) anlaşılırdır.
-Bilinçli olarak yapılmayan: bugünkü dersler (0007), duyurular (0008), öğrenci/bağ yönetim ekranları ve içe aktarma.
+Bilinçli olarak yapılmayan: bugünkü dersler (0008), duyurular (0009), öğrenci/bağ yönetim ekranları ve içe aktarma.
 
 ## Requirements
 1. KVKK rızası olan veli girişten sonra ana ekrana yönlendirilir; rızası olmayan veli önce rıza ekranını görür (0005 akışı korunur).
@@ -19,7 +19,7 @@ Bilinçli olarak yapılmayan: bugünkü dersler (0007), duyurular (0008), öğre
 3. Bir veli bir veya birden çok öğrenciye bağlanabilir (kardeşler); bağ veli ile öğrencinin aynı kurumda olmasını gerektirir.
 4. Bu spec'te öğrenci ve bağlar yalnızca geliştirme/demo örnek verisiyle oluşur; yönetici arayüzü ve Excel/e-Okul içe aktarma yoktur.
 5. Ana ekran velinin bağlı çocuklarını ad soyad, sınıf/şube ve fotoğrafla (fotoğraf yoksa veya yüklenemezse baş harflerle) listeler; sıralama ada göre alfabetik (tr-TR).
-6. Birden çok çocukta veli bir çocuğu seçebilir; seçili çocuk görsel olarak ve ekran okuyucuda belirtilir. Tek çocukta seçici gösterilmez, çocuk otomatik seçilidir. Seçili çocuk 0007/0008 bölümlerinin girdisidir.
+6. Birden çok çocukta veli bir çocuğu seçebilir; seçili çocuk görsel olarak ve ekran okuyucuda belirtilir. Tek çocukta seçici gösterilmez, çocuk otomatik seçilidir. Seçili çocuk 0008/0009 bölümlerinin girdisidir.
 7. Profil menüsü: veli adı (yoksa "Veli") ve maskeli telefon (yalnız son 2 hane açık, ör. `+90 5** *** ** 67`), "Ayarlar" bağlantısı (içerik bu spec'te yok), "Çıkış". Çıkış oturumu sonlandırır ve giriş ekranına döner.
 8. Veli yalnızca kendi kurumundaki ve kendisine bağlı öğrencilerin verisini görür; başka velinin çocuğu veya başka kurumun verisi hiçbir yoldan görünmez, istenirse reddedilir.
 9. Ekran web ve mobilde çalışır; mobil birincil kanaldır.
@@ -36,7 +36,7 @@ Bilinçli olarak yapılmayan: bugünkü dersler (0007), duyurular (0008), öğre
   - *Oturum geçersiz / süresi doldu:* giriş ekranına döner.
 - **Design reference:** https://claude.ai/artifact/Utft1dikrmxkKShhsBvRWH — sürüm `1795176735-03ab` (2026-11-20 itibarıyla
   sabitlendi; sonraki değişiklik spec değişikliğidir, R-08). Bu spec için geçerli kısımlar: başlık "Veli Paneli",
-  Ayarlar/Çıkış, "Çocuklarım" kart ızgarası. "Bugünün Dersleri" 0007, "Son Duyurular" 0008 kapsamıdır.
+  Ayarlar/Çıkış, "Çocuklarım" kart ızgarası. "Bugünün Dersleri" 0008, "Son Duyurular" 0009 kapsamıdır.
 - **Accessibility:** ekran okuyucu bölüm başlığını ve kartları okur (fotoğraf alt metni = çocuğun adı; seçili kart
   "seçili" olarak duyurulur); metin 1.5× büyütmede taşma/kesilme yok; web'de tüm öğelere klavyeyle sırayla erişilir ve
   çocuk seçimi klavyeyle yapılır; kontrast en az 4.5:1; dokunma hedefleri en az 44 px; durum metinleri duyurulur.
@@ -46,9 +46,10 @@ Bilinçli olarak yapılmayan: bugünkü dersler (0007), duyurular (0008), öğre
   için 0005 KVKK rızası yeterli sayılır (hukuki teyit: B-18). Sağlık/alerji verisi bu spec'te yok.
 - Sensitive area: Kimlik ve yetki — veli → öğrenci görünürlüğü.
 - Sensitive area: Tenant izolasyonu — öğrenci ve bağ kurum verisidir.
-- Split: proposed 0006 (çocuk listesi) → 0007 (ders programı + "bugünkü dersler") → 0008 (duyurular + ana ekran duyuru
+- Bağımlılık: çalışan veli oturumu — spec 0007 (veli girişini tamamlama) önce ship edilir; kullanıcı kararı A, 2026-11-20 (R-10). Split numaraları buna göre birer kaydı.
+- Split: proposed 0006 (çocuk listesi) → 0008 (ders programı + "bugünkü dersler") → 0009 (duyurular + ana ekran duyuru
   bölümü); kullanıcı onayladı, 2026-11-20 — gerekçe: üç bölümün de verisi yoktu, her biri kapsam.md Faz 1 modül 2/1/4'e oturuyor.
-- 0007'ye devredilen karar: "bugün" kurumun saat dilimine göre hesaplanır; varsayılan `Europe/Istanbul` (`docs/conventions.md`).
+- 0008'e devredilen karar: "bugün" kurumun saat dilimine göre hesaplanır; varsayılan `Europe/Istanbul` (`docs/conventions.md`).
 - Out of scope: öğrenci/veli–öğrenci bağı yönetim arayüzü, Excel/e-Okul içe aktarma, sağlık notu/alerji, teslim
   alabilecek kişiler, birden çok velinin aynı çocuğa bağlanmasının yönetimi, ders/duyuru bölümleri, not/ödev,
   devamsızlık, ödeme, mesajlaşma, AI özet, Ayarlar sayfası içeriği, öğrenci rolü (Faz 2).
@@ -74,10 +75,10 @@ Bilinçli olarak yapılmayan: bugünkü dersler (0007), duyurular (0008), öğre
 
 ## Self-critique
 Onaylandı (kullanıcı, 2026-11-20) ve yukarıya işlendi:
-- G-1 SIZE → 0006/0007/0008 bölündü (Constraints, Split).
+- G-1 SIZE → 0006/0008/0009 bölündü (Constraints, Split).
 - G-2 bağı kim kurar → bu spec'te yalnız örnek veri; yönetim arayüzü ve içe aktarma ayrı spec (Requirement 4).
 - G-3 fotoğraf KVKK → 0005 rızası yeterli, baş harf yedeği (AC-3); hukuki teyit B-18.
-- G-4 "bugün" saat dilimi → kurum saat dilimi, varsayılan Europe/Istanbul; 0007'ye devredildi.
+- G-4 "bugün" saat dilimi → kurum saat dilimi, varsayılan Europe/Istanbul; 0008'e devredildi.
 - G-5 tasarım → artifact sürüm `1795176735-03ab` ile sabitlendi.
 
 ## Scorecard (fill at ship — honest numbers make the process improvable)
