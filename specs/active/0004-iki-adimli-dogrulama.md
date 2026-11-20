@@ -1,6 +1,6 @@
 # Spec 0004 — Personel için iki adımlı doğrulama (2FA)
 
-- Status: Approved
+- Status: In progress
 - Mode: lite
 - Plan: `specs/plans/0004-plan.md`
 - Self-critique: done
