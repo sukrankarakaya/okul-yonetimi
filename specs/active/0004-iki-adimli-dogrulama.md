@@ -82,6 +82,8 @@ cihazı hatırla", SSO (Faz 2), arayüzden kullanıcı yönetimi.
   seçeneği yok. Kurtarma kodlarını yenileme ve kapatma bir doğrulama kodu ister (hatalı kod / kilitli /
   bağlantı hatası metinleri yukarıdaki gibi). Başarıda: "Yeni kurtarma kodlarınız oluşturuldu." (ardından Kurtarma
   kodları ekranı) / "İki adımlı doğrulama kapatıldı."
+- **States — Şifre değiştir (0003'e ek, Requirement 6):** *Kilitli:* "Çok fazla başarısız deneme. 15 dakika sonra tekrar
+  deneyin." — alanlar temizlenmez; kilit kalkana kadar her deneme aynı yanıtı alır.
 - **Design reference:** none — 0003 ekranlarının görsel dili; analiz tuvalindeki `F0004-Ekranlar` maketleri durumların
   görünümünü gösterir, onaylanırsa tarihli hâli referanstır.
 - **Accessibility:** kod alanları sayısal klavye açar ve tek kullanımlık kod otomatik doldurmayla uyumludur
