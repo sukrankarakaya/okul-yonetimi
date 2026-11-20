@@ -245,8 +245,15 @@ export function createOkulClient(options: OkulClientOptions): OkulClient {
       if (response.ok) {
         return 'changed';
       }
+      // Only the three 400 codes are the user's input; a server error, a refusal (403/429) or an unknown answer is not —
+      // it must not read "Yeni şifreler eşleşmiyor." (spec 0003 VERIFY round 1 F-2, the twin of review round 1 #7).
       const code = (error as { code?: string } | undefined)?.code;
-      return code === 'current_password_wrong' ? 'currentWrong' : code === 'password_too_short' ? 'tooShort' : 'mismatch';
+      if (response.status === 400) {
+        if (code === 'current_password_wrong') return 'currentWrong';
+        if (code === 'password_too_short') return 'tooShort';
+        if (code === 'password_mismatch') return 'mismatch';
+      }
+      return 'network';
     },
   };
 }

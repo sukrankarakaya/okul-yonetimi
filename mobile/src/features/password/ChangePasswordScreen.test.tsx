@@ -43,6 +43,25 @@ describe('ChangePasswordScreen', () => {
     expect(screen.getByLabelText('Yeni şifre').props.secureTextEntry).toBe(true);
   });
 
+  it('is busy and disabled while sending — no double submit (VERIFY round 1 F-4)', async () => {
+    let finish: (r: ChangePasswordResult) => void = () => undefined;
+    const changePassword = jest.fn(() => new Promise<ChangePasswordResult>((r) => (finish = r)));
+    await render(<ChangePasswordScreen changePassword={changePassword} onChanged={jest.fn()} onCancel={jest.fn()} onSessionEnded={jest.fn()} />);
+    await fireEvent.changeText(screen.getByLabelText('Mevcut şifre'), 'eski-sifre-123');
+    await fireEvent.changeText(screen.getByLabelText('Yeni şifre'), 'yeni-sifre-1234');
+    await fireEvent.changeText(screen.getByLabelText('Yeni şifre (tekrar)'), 'yeni-sifre-1234');
+    await fireEvent.press(screen.getByRole('button', { name: 'Şifreyi değiştir' }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Şifreyi değiştir' })).toBeDisabled());
+    expect(screen.getByRole('button', { name: 'Şifreyi değiştir' })).toBeBusy();
+    expect(screen.getByLabelText('Yükleniyor…')).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Şifreyi değiştir' }));
+
+    expect(changePassword).toHaveBeenCalledTimes(1);
+    finish('currentWrong');
+    expect(await screen.findByText('Mevcut şifre hatalı.')).toBeOnTheScreen();
+  });
+
   it('goes back to Giriş when the session has ended, and "Vazgeç" cancels', async () => {
     const { onSessionEnded, onCancel } = await renderScreen('unauthenticated');
 

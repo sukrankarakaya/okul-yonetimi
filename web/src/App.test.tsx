@@ -96,6 +96,21 @@ describe('api-client login answers', () => {
     expect((await client.login('ATATURK-IST', 'a@b.test', 'dogru-sifre-123')).kind).toBe(kind);
   });
 
+  it.each([
+    [400, 'current_password_wrong', 'currentWrong'],
+    [400, 'password_too_short', 'tooShort'],
+    [400, 'password_mismatch', 'mismatch'],
+    [400, undefined, 'network'],
+    [500, undefined, 'network'],
+    [403, undefined, 'network'],
+    [429, undefined, 'network'],
+  ])('change password maps HTTP %i (code %s) to %s (VERIFY round 1 F-2)', async (status, code, result) => {
+    const { fetch } = backend({ 'POST /api/v1/auth/password': [() => json(status, { detail: 'x', code })] });
+    const client = createOkulClient({ baseUrl: 'http://api.test', kind: 'web', fetch });
+
+    expect(await client.changePassword('eski-sifre-123', 'yeni-sifre-1234', 'yeni-sifre-1234')).toBe(result);
+  });
+
   it('shows "Bağlantı kurulamadı" — not "hatalı bilgi" — when the server fails, and keeps the password', async () => {
     const user = userEvent.setup();
     const { fetch } = backend({

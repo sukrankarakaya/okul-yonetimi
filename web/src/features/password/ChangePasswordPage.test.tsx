@@ -65,6 +65,24 @@ describe('ChangePasswordPage', () => {
     expect(onCancel).toHaveBeenCalledOnce();
   });
 
+  it('disables the button while sending — no double submit (VERIFY round 1 F-4)', async () => {
+    const user = userEvent.setup();
+    let finish: (r: ChangePasswordResult) => void = () => undefined;
+    const changePassword = vi.fn(() => new Promise<ChangePasswordResult>((r) => (finish = r)));
+    render(<ChangePasswordPage changePassword={changePassword} onChanged={() => undefined} onCancel={() => undefined} onSessionEnded={() => undefined} />);
+
+    await submit(user);
+
+    const button = screen.getByRole('button', { name: 'Yükleniyor…' });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute('aria-busy', 'true');
+    await user.click(button);
+    expect(changePassword).toHaveBeenCalledOnce();
+    finish('currentWrong');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Mevcut şifre hatalı.');
+    expect(screen.getByRole('button', { name: 'Şifreyi değiştir' })).toBeEnabled();
+  });
+
   it('uses new-password fields for the password manager', () => {
     renderPage('changed');
 

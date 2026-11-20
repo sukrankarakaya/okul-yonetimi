@@ -77,6 +77,22 @@ describe('secure session (mobile)', () => {
     expect((await client.login('ATATURK-IST', 'a@b.test', 'dogru-sifre-123')).kind).toBe(kind);
   });
 
+  it.each([
+    [400, 'password_mismatch', 'mismatch'],
+    [400, 'current_password_wrong', 'currentWrong'],
+    [500, undefined, 'network'],
+    [403, undefined, 'network'],
+    [429, undefined, 'network'],
+  ])('change password maps HTTP %i (code %s) to %s (VERIFY round 1 F-2)', async (status, code, result) => {
+    const storage = memoryStorage();
+    await storage.setItemAsync('okul.session', JSON.stringify({ accessToken: 'access-1', refreshToken: 'refresh-1' }));
+    const fetch = jest.fn(async () => json(status, { detail: 'x', code }));
+    const client = createOkulClient({ baseUrl: 'http://api.test', kind: 'mobile', tokenStore: secureTokenStore(storage), fetch });
+
+    expect(await client.changePassword('eski-sifre-123', 'yeni-sifre-1234', 'yeni-sifre-1234')).toBe(result);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
   it('logout clears the secure store', async () => {
     const storage = memoryStorage();
     const store = secureTokenStore(storage);
