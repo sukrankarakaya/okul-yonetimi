@@ -15,6 +15,8 @@ export const passwordTexts = {
   mismatch: 'Yeni şifreler eşleşmiyor.',
   currentWrong: 'Mevcut şifre hatalı.',
   network: 'Bağlantı kurulamadı, tekrar deneyin.',
+  /** Spec 0004 (B-11, plan R7): the login lock's text. */
+  locked: 'Çok fazla başarısız deneme. 15 dakika sonra tekrar deneyin.',
   changed: 'Şifreniz değiştirildi.',
   loading: 'Yükleniyor…',
 } as const;
@@ -52,6 +54,7 @@ export function ChangePasswordScreen({ changePassword, onChanged, onCancel, onSe
       mismatch: passwordTexts.mismatch,
       currentWrong: passwordTexts.currentWrong,
       network: passwordTexts.network,
+      locked: passwordTexts.locked,
     };
     if (result === 'changed') {
       onChanged();

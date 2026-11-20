@@ -1,11 +1,16 @@
 import { createOkulClient, type OkulClient } from '@okul/api-client';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, SafeAreaView, StyleSheet } from 'react-native';
 import { readLoginHint, secureTokenStore, writeLoginHint, type LoginHint } from './src/auth/secureSession';
 import { InstitutionScreen } from './src/features/institution/InstitutionScreen';
+import { codeTexts, type CodeOutcome } from './src/features/login/CodeForm';
 import { LoginScreen, loginTexts } from './src/features/login/LoginScreen';
+import { RecoveryCodesStep } from './src/features/login/RecoveryCodesStep';
+import { SetupStep } from './src/features/login/SetupStep';
+import { VerifyStep } from './src/features/login/VerifyStep';
 import { ChangePasswordScreen, passwordTexts } from './src/features/password/ChangePasswordScreen';
+import { SecurityScreen, securityTexts } from './src/features/security/SecurityScreen';
 
 const baseUrl = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:5080';
 
@@ -20,6 +25,12 @@ export function createMobileClient(): OkulClient {
 type Screen =
   | { kind: 'checking' }
   | { kind: 'login'; notice?: string; hint: LoginHint | null }
+  // Spec 0004 — the step after a right password, and the Güvenlik screens.
+  | { kind: 'verify'; step: string }
+  | { kind: 'setup'; step: string }
+  | { kind: 'enable' }
+  | { kind: 'recovery'; codes: string[]; next: 'institution' | 'security'; notice?: string }
+  | { kind: 'security' }
   | { kind: 'institution'; notice?: string }
   | { kind: 'password' };
 
@@ -52,6 +63,27 @@ export default function App({ client: injected, loginHint }: AppProps = {}) {
 
   const loadInstitution = useCallback(() => client.getMyInstitution(), [client]);
   const sessionEnded = useCallback((expired: boolean) => void toLogin(expired ? loginTexts.expired : undefined), [toLogin]);
+  const stepEnded = useCallback(() => void toLogin(codeTexts.stepEnded), [toLogin]);
+  const loadStatus = useCallback(() => client.getTwoFactor(), [client]);
+  const setupStep = screen.kind === 'setup' ? screen.step : null;
+  const loadSetup = useCallback(() => client.startSetup(setupStep ?? ''), [client, setupStep]);
+  const enableStep = useRef<string>('');
+  const loadEnable = useCallback(async () => {
+    const result = await client.startEnableTwoFactor();
+    if (result.kind === 'ok') {
+      enableStep.current = result.step;
+    }
+    return result;
+  }, [client]);
+  const toSecurity = useCallback(() => setScreen({ kind: 'security' }), []);
+  const enableEnded = useCallback(
+    (outcome: CodeOutcome) => (outcome.kind === 'unauthenticated' ? sessionEnded(true) : toSecurity()),
+    [sessionEnded, toSecurity],
+  );
+  const cancelStep = (step: string) => {
+    void client.cancelLogin(step);
+    void toLogin();
+  };
 
   return (
     <SafeAreaView style={styles.root}>
@@ -63,9 +95,61 @@ export default function App({ client: injected, loginHint }: AppProps = {}) {
             void hints.write({ institutionCode, email });
             setScreen({ kind: 'institution' });
           }}
+          onStep={(next, step, institutionCode, email) => {
+            void hints.write({ institutionCode, email });
+            setScreen({ kind: next, step });
+          }}
           notice={screen.notice}
           initialCode={screen.hint?.institutionCode}
           initialEmail={screen.hint?.email}
+        />
+      ) : null}
+      {screen.kind === 'verify' ? (
+        <VerifyStep
+          verify={(code) => client.verifyLogin(screen.step, code)}
+          verifyWithRecoveryCode={(code) => client.verifyWithRecoveryCode(screen.step, code)}
+          onVerified={() => setScreen({ kind: 'institution' })}
+          onStepEnded={stepEnded}
+          onCancel={() => cancelStep(screen.step)}
+        />
+      ) : null}
+      {screen.kind === 'setup' ? (
+        <SetupStep
+          load={loadSetup}
+          confirm={(code) => client.confirmSetup(screen.step, code)}
+          onConfirmed={(codes) => setScreen({ kind: 'recovery', codes, next: 'institution' })}
+          onEnded={stepEnded}
+          onCancel={() => cancelStep(screen.step)}
+        />
+      ) : null}
+      {screen.kind === 'enable' ? (
+        <SetupStep
+          load={loadEnable}
+          confirm={async (code) => {
+            const result = await client.confirmEnableTwoFactor(enableStep.current, code);
+            return result.kind === 'ok' ? { kind: 'ok', recoveryCodes: result.recoveryCodes ?? [] } : result;
+          }}
+          onConfirmed={(codes) => setScreen({ kind: 'recovery', codes, next: 'security' })}
+          onEnded={enableEnded}
+          onCancel={toSecurity}
+        />
+      ) : null}
+      {screen.kind === 'recovery' ? (
+        <RecoveryCodesStep
+          codes={screen.codes}
+          notice={screen.notice}
+          onContinue={() => setScreen(screen.next === 'security' ? { kind: 'security' } : { kind: 'institution' })}
+        />
+      ) : null}
+      {screen.kind === 'security' ? (
+        <SecurityScreen
+          loadStatus={loadStatus}
+          renewRecoveryCodes={(code) => client.renewRecoveryCodes(code)}
+          disableTwoFactor={(code) => client.disableTwoFactor(code)}
+          onRenewed={(codes) => setScreen({ kind: 'recovery', codes, next: 'security', notice: securityTexts.renewed })}
+          onEnable={() => setScreen({ kind: 'enable' })}
+          onSessionEnded={() => sessionEnded(true)}
+          onBack={() => setScreen({ kind: 'institution' })}
         />
       ) : null}
       {screen.kind === 'password' ? (
@@ -82,6 +166,7 @@ export default function App({ client: injected, loginHint }: AppProps = {}) {
           notice={screen.notice}
           onSessionEnded={sessionEnded}
           onChangePassword={() => setScreen({ kind: 'password' })}
+          onSecurity={() => setScreen({ kind: 'security' })}
           onLogout={() => void client.logout().finally(() => void toLogin())}
         />
       ) : null}
