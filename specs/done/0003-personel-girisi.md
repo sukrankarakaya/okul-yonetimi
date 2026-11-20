@@ -1,6 +1,6 @@
 # Spec 0003 — Personel girişi: kurum kodu, e-posta ve şifreyle oturum
 
-- Status: In progress
+- Status: Shipped
 - Mode: lite
 - Plan: `specs/plans/0003-plan.md`
 - Self-critique: done
@@ -91,40 +91,40 @@ oluşturulması (davet), birden fazla kuruma üyelik, SSO (Faz 2).
   kuruma üyelik; giriş denemelerinin audit kaydı; yönetici paneline özel ekranlar; B-6.
 
 ## Acceptance criteria
-- [ ] AC-1 — Doğru kurum kodu, e-posta ve şifreyle Yönetici, Öğretmen ve Muhasebe rollerinin her biri web'de ve mobilde
+- [x] AC-1 — Doğru kurum kodu, e-posta ve şifreyle Yönetici, Öğretmen ve Muhasebe rollerinin her biri web'de ve mobilde
   giriş yapar ve kendi kurumunun Kurum bilgisi ekranını görür; iki rollü bir hesabın oturumu iki rolü de taşır.
-- [ ] AC-2 — Yanlış şifre, bilinmeyen e-posta, bilinmeyen kurum kodu, başka kurumun e-postası ve yalnızca veli rolü
+- [x] AC-2 — Yanlış şifre, bilinmeyen e-posta, bilinmeyen kurum kodu, başka kurumun e-postası ve yalnızca veli rolü
   taşıyan hesap aynı "hatalı bilgi" yanıtını alır; hiçbirinde oturum açılmaz.
-- [ ] AC-3 — Aynı kurum kodu + e-posta için 5 başarısız denemeden sonra giriş 15 dakika kilitlenir (var olmayan hesapta
+- [x] AC-3 — Aynı kurum kodu + e-posta için 5 başarısız denemeden sonra giriş 15 dakika kilitlenir (var olmayan hesapta
   da aynı yanıt); kilitliyken doğru şifre reddedilir ve denemeler kilidi uzatmaz; 15 dakika sonra doğru şifre oturum
   açar; 4 hata + başarılı giriş + 4 hata kilitlemez; 4 hata + 15 dakika bekleme + 4 hata kilitlemez; aynı kaynaktan
   dakikada 21. deneme "çok fazla deneme" yanıtını alır. Kurum kodu ve e-posta büyük/küçük harf ve baş/son boşluk
   farkıyla aynı hesabı bulur (`I`/`ı` içeren örnek dahil).
-- [ ] AC-4 — A kurumunun personelinin oturumu B kurumunun hiçbir verisine erişemez ve istemci tarafında kurum
+- [x] AC-4 — A kurumunun personelinin oturumu B kurumunun hiçbir verisine erişemez ve istemci tarafında kurum
   değiştirilemez: 0001'in AC-2, AC-3, AC-4 kanıtları gerçek girişle açılan oturumlarla yeşildir.
-- [ ] AC-5 — Erişim süresi (15 dk) dolduğunda oturum kullanıcı fark etmeden yenilenir ve ekran kesintisiz çalışır;
+- [x] AC-5 — Erişim süresi (15 dk) dolduğunda oturum kullanıcı fark etmeden yenilenir ve ekran kesintisiz çalışır;
   aynı anda gelen birden fazla istek tek bir yenileme yapar; yenilemenin üst sınırı (web 12 saat, mobil 30 gün) dolunca
   yenileme reddedilir ve kullanıcı "Oturumunuzun süresi doldu" mesajıyla Giriş ekranına döner; kullanılmış bir
   yenileme bilgisi tekrar gelirse oturum tamamen kapanır.
-- [ ] AC-6 — Çıkıştan sonraki ilk istekte, erişim süresi dolmamış olsa da, o oturumla ne veri alınır ne oturum
+- [x] AC-6 — Çıkıştan sonraki ilk istekte, erişim süresi dolmamış olsa da, o oturumla ne veri alınır ne oturum
   yenilenir; aynı kullanıcının başka cihazdaki oturumu çalışmaya devam eder.
-- [ ] AC-7 — Şifre değiştirme: mevcut şifre yanlışsa, yeni şifre 10 karakterden kısaysa veya iki giriş eşleşmiyorsa
+- [x] AC-7 — Şifre değiştirme: mevcut şifre yanlışsa, yeni şifre 10 karakterden kısaysa veya iki giriş eşleşmiyorsa
   reddedilir; başarıda eski şifreyle giriş reddedilir, kullanıcının diğer oturumlarının bir sonraki isteği reddedilir,
   bu cihazdaki oturum sürer.
-- [ ] AC-8 — Web'de oturum bilgisi sayfa betiklerinden okunamaz ve tarayıcı deposunda bulunmaz; mobilde oturum bilgisi
+- [x] AC-8 — Web'de oturum bilgisi sayfa betiklerinden okunamaz ve tarayıcı deposunda bulunmaz; mobilde oturum bilgisi
   cihazın güvenli deposundadır; şifre hiçbir log, hata yanıtı veya çıktıda görünmez.
-- [ ] AC-9 — Test girişi üretim ortamında bulunmaz, yayımlanan API dokümanında yer almaz ve web ile mobil üretim
+- [x] AC-9 — Test girişi üretim ortamında bulunmaz, yayımlanan API dokümanında yer almaz ve web ile mobil üretim
   paketlerinde hiçbir kalıntısı yoktur; web ve mobil uygulamalar oturum yokken Giriş ekranıyla açılır.
-- [ ] AC-10 — Web ve mobilde Giriş ve Şifre değiştir ekranlarının User experience'taki her durumu kendi metniyle görünür;
+- [x] AC-10 — Web ve mobilde Giriş ve Şifre değiştir ekranlarının User experience'taki her durumu kendi metniyle görünür;
   Kurum bilgisi ekranında "Çıkış yap" ve "Şifremi değiştir" çalışır; erişilebilirlik maddeleri (etiketler, Tab sırası,
   Enter, duyurular) sağlanır.
 
 ## Definition of Done
-- [ ] Every acceptance criterion mapped to proof (test or reproducible observation)
-- [ ] `scripts/check` green
-- [ ] Independent review done; real findings fixed, noise rejected with written rationale, deferred ones in `specs/backlog.md`
-- [ ] Docs / ADRs updated if behavior or architecture changed
-- [ ] Spec moved to `specs/done/` (it becomes immutable there)
+- [x] Every acceptance criterion mapped to proof (test or reproducible observation)
+- [x] `scripts/check` green
+- [x] Independent review done; real findings fixed, noise rejected with written rationale, deferred ones in `specs/backlog.md`
+- [x] Docs / ADRs updated if behavior or architecture changed
+- [x] Spec moved to `specs/done/` (it becomes immutable there)
 
 ## Scorecard (fill at ship — honest numbers make the process improvable)
 | Metric | Value |
