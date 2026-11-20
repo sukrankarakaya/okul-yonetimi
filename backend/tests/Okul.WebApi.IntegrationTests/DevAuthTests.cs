@@ -46,6 +46,24 @@ public sealed class DevAuthTests
         data.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 
+    /// <summary>
+    /// Spec 0003, AC-9 / B-3 — the published API description never names the test login (so neither the generated
+    /// client nor the app bundles can), while the real login is there.
+    /// </summary>
+    [Fact]
+    public async Task OpenApi_HasNoTestLogin()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var development = _api.CreateFactory("Development");
+
+        var document = await development.CreateClient().GetStringAsync("/openapi/v1.json", ct);
+
+        document.ShouldContain("/api/v1/auth/login");
+        document.ShouldNotContain("test-login");
+        document.ShouldNotContain("DevAuth");
+        EndpointNames(development).ShouldContain(DevTestLoginName); // mapped in Development — only not described
+    }
+
     private const string DevTestLoginName = "DevTestLogin";
 
     private static IEnumerable<string> EndpointNames(OkulApiFactory factory) =>

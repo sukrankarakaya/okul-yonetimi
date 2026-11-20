@@ -16,4 +16,10 @@ public static class OkulClaims
     public const string Subject = "sub";
     public const string TenantId = "tenant_id";
     public const string Role = "role";
+
+    /// <summary>The session this access belongs to — checked on every request (spec 0003, G5).</summary>
+    public const string Session = "sid";
+
+    /// <summary>The session's absolute end (Unix seconds): web 12 hours, mobile 30 days from login.</summary>
+    public const string SessionExpiresAt = "sexp";
 }

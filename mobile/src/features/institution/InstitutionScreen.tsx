@@ -2,14 +2,15 @@ import type { InstitutionResult } from '@okul/api-client';
 import { useCallback, useEffect, useState } from 'react';
 import { AccessibilityInfo, ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-/** Spec 0001, User experience — the texts are part of the acceptance criteria. */
+/** Spec 0001 + 0003, User experience — the texts are part of the acceptance criteria. */
 export const texts = {
   loading: 'Yükleniyor…',
   empty: 'Henüz şube tanımlanmamış.',
   error: 'Bilgiler alınamadı, tekrar deneyin.',
   retry: 'Tekrar dene',
-  unauthenticated: 'Oturum açmanız gerekiyor.',
   campusList: 'Şubeler',
+  logout: 'Çıkış yap',
+  changePassword: 'Şifremi değiştir',
 } as const;
 
 type ScreenState = { kind: 'loading' } | InstitutionResult;
@@ -23,7 +24,7 @@ export function announcementFor(state: ScreenState): string | null {
     case 'loading':
       return texts.loading;
     case 'unauthenticated':
-      return texts.unauthenticated;
+      return null; // the app goes back to Giriş, which announces its own notice (spec 0003)
     case 'error':
       return texts.error;
     case 'ok':
@@ -33,9 +34,15 @@ export function announcementFor(state: ScreenState): string | null {
 
 export interface InstitutionScreenProps {
   loadInstitution: () => Promise<InstitutionResult>;
+  /** No (or an ended) session: back to Giriş — never kurum data (spec 0003, Requirement 10). */
+  onSessionEnded?: (expired: boolean) => void;
+  onLogout?: () => void;
+  onChangePassword?: () => void;
+  /** A one-off message, e.g. "Şifreniz değiştirildi." */
+  notice?: string;
 }
 
-export function InstitutionScreen({ loadInstitution }: InstitutionScreenProps) {
+export function InstitutionScreen({ loadInstitution, onSessionEnded, onLogout, onChangePassword, notice }: InstitutionScreenProps) {
   const [state, setState] = useState<ScreenState>({ kind: 'loading' });
   const [attempt, setAttempt] = useState(0);
 
@@ -50,6 +57,18 @@ export function InstitutionScreen({ loadInstitution }: InstitutionScreenProps) {
       active = false;
     };
   }, [loadInstitution, attempt]);
+
+  useEffect(() => {
+    if (state.kind === 'unauthenticated') {
+      onSessionEnded?.(state.expired);
+    }
+  }, [state, onSessionEnded]);
+
+  useEffect(() => {
+    if (notice) {
+      AccessibilityInfo.announceForAccessibility(notice);
+    }
+  }, [notice]);
 
   useEffect(() => {
     const message = announcementFor(state);
@@ -73,13 +92,7 @@ export function InstitutionScreen({ loadInstitution }: InstitutionScreenProps) {
       );
 
     case 'unauthenticated':
-      return (
-        <View style={styles.centered}>
-          <Text accessibilityLiveRegion="polite" style={styles.message}>
-            {texts.unauthenticated}
-          </Text>
-        </View>
-      );
+      return null;
 
     case 'error':
       return (
@@ -102,6 +115,11 @@ export function InstitutionScreen({ loadInstitution }: InstitutionScreenProps) {
       const { institution } = state;
       return (
         <ScrollView contentContainerStyle={styles.content}>
+          {notice ? (
+            <Text accessibilityLiveRegion="polite" style={styles.notice}>
+              {notice}
+            </Text>
+          ) : null}
           {/* Names are rendered as plain text — never interpreted as markup (spec 0001, G6). */}
           <Text accessibilityRole="header" style={styles.title}>
             {institution.name}
@@ -119,6 +137,16 @@ export function InstitutionScreen({ loadInstitution }: InstitutionScreenProps) {
               ))}
             </View>
           )}
+          {onChangePassword ? (
+            <Pressable accessibilityRole="button" accessibilityLabel={texts.changePassword} onPress={onChangePassword} style={styles.secondary}>
+              <Text style={styles.secondaryText}>{texts.changePassword}</Text>
+            </Pressable>
+          ) : null}
+          {onLogout ? (
+            <Pressable accessibilityRole="button" accessibilityLabel={texts.logout} onPress={onLogout} style={styles.secondary}>
+              <Text style={styles.secondaryText}>{texts.logout}</Text>
+            </Pressable>
+          ) : null}
         </ScrollView>
       );
     }
@@ -133,4 +161,7 @@ const styles = StyleSheet.create({
   campus: { fontSize: 16, color: '#222', paddingVertical: 8 },
   button: { backgroundColor: '#1d4ed8', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 8 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  notice: { color: '#065f46', backgroundColor: '#ecfdf5', borderRadius: 8, padding: 12, fontSize: 16 },
+  secondary: { minHeight: 44, borderWidth: 1, borderColor: '#1d4ed8', borderRadius: 8, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 },
+  secondaryText: { color: '#1d4ed8', fontSize: 16, fontWeight: '600' },
 });

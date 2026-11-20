@@ -22,10 +22,19 @@
 
 ## AuthN / AuthZ
 - Personel: e-posta + şifre. Veli: telefon + SMS OTP.
-- Kısa ömürlü JWT access token (15 dk) + dönen refresh token; mobilde SecureStore, web'de httpOnly cookie.
-  *Geçici (spec 0001 → gerçek giriş spec'i):* iskelette web token yalnızca bellekte tutulur (localStorage yok); httpOnly cookie akışı gerçek giriş spec'inde.
+- Kısa ömürlü JWT access token (15 dk) + dönen refresh token; mobilde SecureStore, web'de httpOnly cookie
+  (spec 0003): web'de erişim ve yenileme **ikisi de** httpOnly + Secure + SameSite=Strict çerez, gövdede jeton yok;
+  çerezli değiştiren isteklerde `X-Okul-Csrf` başlığı şart. Oturum mutlak sınırı web 12 saat, mobil 30 gün; yenileme
+  bilgisi her kullanımda döner, kullanılmış bilgi tekrar gelirse oturum kapanır (10 sn paralel tolerans).
+- **Her istekte oturum denetimi:** çıkış ve şifre değişikliği bir sonraki istekte geçerlidir (15 dk beklenmez).
+- Personel girişi: kurum kodu + e-posta + şifre; yanlış girdinin her türü tek cevap alır; şifre PBKDF2 özetiyle saklanır,
+  bilinmeyen hesapta da sahte bir doğrulama çalışır. Test girişi yalnızca Development/Testing'de, OpenAPI dışında.
+- **İlk yönetici (üretim):** `dotnet Okul.WebApi.dll create-admin --kurum-kodu <kod> --e-posta <adres>`; şifre standart
+  girdiden okunur (terminalde ekrana yansımadan; pipe ile secret manager'dan da verilebilir), komut satırına yazılmaz ve hiçbir yerde yazdırılmaz (veritabanı önceden migrate edilmiş olmalı).
 - 2FA (TOTP) **Kurucu/Yönetici ve Muhasebe için zorunlu**, Öğretmen için isteğe bağlı.
-- Giriş ve OTP'de rate limit + hesap kilitleme.
+- Giriş ve OTP'de rate limit + hesap kilitleme. Personel girişi (spec 0003): aynı kurum kodu + e-posta için 5 hata /
+  15 dk → 15 dk kilit (var olmayan hesapta da aynı); kaynak başına dakikada 20 deneme. TLS sonlandıran proxy arkasında
+  kaynak adresi için B-4.
 - **Default deny:** her endpoint açık yetki politikası ister; yetkisiz endpoint mimari/entegrasyon testinde yakalanır.
 - Yetki iki katmanlı: rol + kaynak (şube, sınıf, "kendi çocuğu") — BR-6. Tenant izolasyonu BR-1, her sorguda.
 - KVKK: veli ilk girişte aydınlatma metni + açık rıza; rıza kayıtları sürümlü. Fotoğraf paylaşımında

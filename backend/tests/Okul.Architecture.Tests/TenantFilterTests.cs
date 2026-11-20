@@ -31,14 +31,36 @@ public sealed class TenantFilterTests
         unfiltered.ShouldBeEmpty($"{type.Name}: entities without the '{TenantDbContext.TenantFilterKey}' query filter");
     }
 
+    /// <summary>
+    /// The module DbContexts allowed to be tenant-free, BY NAME (plan 0003, R4): failed-login state must exist before
+    /// any tenant is known. Anything else that derives from plain <see cref="DbContext"/> fails here — a new tenant-free
+    /// context needs its own decision.
+    /// </summary>
+    private static readonly string[] TenantFreeAllowList =
+        ["Okul.Modules.Identity.Infrastructure.Persistence.LoginThrottleDbContext"];
+
+    [Fact]
+    public void EveryModuleDbContext_IsTenantScoped_OrNamedInTheAllowList()
+    {
+        var tenantFree = ModuleTypes()
+            .Where(t => t.IsSubclassOf(typeof(DbContext)) && !t.IsSubclassOf(typeof(TenantDbContext)))
+            .Select(t => t.FullName!)
+            .ToList();
+
+        tenantFree.ShouldBe(TenantFreeAllowList, ignoreOrder: true);
+    }
+
     private static IEnumerable<Type> DbContextTypes() =>
+        ModuleTypes().Where(t => t.IsSubclassOf(typeof(TenantDbContext)));
+
+    private static IEnumerable<Type> ModuleTypes() =>
         AppDomain.CurrentDomain.GetAssemblies()
             .Concat(Directory.GetFiles(AppContext.BaseDirectory, "Okul.Modules.*.Infrastructure.dll")
                 .Select(System.Reflection.Assembly.LoadFrom))
             .Distinct()
             .Where(a => a.GetName().Name!.StartsWith("Okul.Modules.", StringComparison.Ordinal))
             .SelectMany(a => a.GetTypes())
-            .Where(t => t is { IsAbstract: false } && t.IsSubclassOf(typeof(TenantDbContext)));
+            .Where(t => t is { IsAbstract: false });
 
     private static TenantDbContext Create(Type contextType)
     {

@@ -9,7 +9,7 @@ public sealed class InstitutionTests
     [Fact]
     public void Create_TrimsName()
     {
-        var institution = InstitutionEntity.Create(Guid.CreateVersion7(), "  Atatürk Koleji  ");
+        var institution = InstitutionEntity.Create(Guid.CreateVersion7(), "  Atatürk Koleji  ", "OKUL-1");
 
         institution.Name.ShouldBe("Atatürk Koleji");
     }
@@ -19,7 +19,7 @@ public sealed class InstitutionTests
     [InlineData("   ")]
     public void Create_EmptyName_Throws(string name)
     {
-        Should.Throw<ArgumentException>(() => InstitutionEntity.Create(Guid.CreateVersion7(), name));
+        Should.Throw<ArgumentException>(() => InstitutionEntity.Create(Guid.CreateVersion7(), name, "OKUL-1"));
     }
 
     [Fact]
@@ -27,19 +27,19 @@ public sealed class InstitutionTests
     {
         var name = new string('a', InstitutionEntity.NameMaxLength + 1);
 
-        Should.Throw<ArgumentException>(() => InstitutionEntity.Create(Guid.CreateVersion7(), name));
+        Should.Throw<ArgumentException>(() => InstitutionEntity.Create(Guid.CreateVersion7(), name, "OKUL-1"));
     }
 
     [Fact]
     public void Create_EmptyId_Throws()
     {
-        Should.Throw<ArgumentException>(() => InstitutionEntity.Create(Guid.Empty, "Atatürk Koleji"));
+        Should.Throw<ArgumentException>(() => InstitutionEntity.Create(Guid.Empty, "Atatürk Koleji", "OKUL-1"));
     }
 
     [Fact]
     public void AddCampus_CampusBelongsToTheInstitutionsTenant()
     {
-        var institution = InstitutionEntity.Create(Guid.CreateVersion7(), "Atatürk Koleji");
+        var institution = InstitutionEntity.Create(Guid.CreateVersion7(), "Atatürk Koleji", "OKUL-1");
 
         var campus = institution.AddCampus(Guid.CreateVersion7(), " Üsküdar ");
 
@@ -51,7 +51,7 @@ public sealed class InstitutionTests
     [Fact]
     public void AddCampus_EmptyName_Throws()
     {
-        var institution = InstitutionEntity.Create(Guid.CreateVersion7(), "Atatürk Koleji");
+        var institution = InstitutionEntity.Create(Guid.CreateVersion7(), "Atatürk Koleji", "OKUL-1");
 
         Should.Throw<ArgumentException>(() => institution.AddCampus(Guid.CreateVersion7(), " "));
     }

@@ -23,7 +23,9 @@ step 7). Nothing lands here without that decision; noise is rejected in the tria
 - **B-2** — api-client drift kontrolü: üretilmiş TS tipleri backend OpenAPI'den kopabilir; check'te
   "yeniden üret + fark yok" adımı yok — Source: spec 0001, plan risk R5 — Severity: low —
   Recommendation: commit'ler başlayınca (B-1) fast adım olarak ekle — Deferred by: kullanıcı, 2026-11-17, plan 0001 R5 kararı
-- **B-3** — Geliştirme route'u (`/api/v1/dev/test-login`) OpenAPI dokümanında ve üretilmiş tiplerde yer alıyor.
+- **B-3** — **Kapandı (spec 0003, 2026-11-19):** test girişi OpenAPI dışında (`ExcludeFromDescription`), `createDevAuthClient`
+  ve web/mobil `devLogin` silindi, login tek seferlik yenilemeyle; `expo export` / `vite build` paketlerinde `test-login`
+  sayımı spec 0003 VERIFY'ında. Eski kayıt: Geliştirme route'u (`/api/v1/dev/test-login`) OpenAPI dokümanında ve üretilmiş tiplerde yer alıyor.
   Web üretim paketine girmiyor (VERIFY 2026-11-19 doğruladı); **mobil üretim paketlerine giriyor**: `expo export`
   (web/ios/android) üçünde de `createDevAuthClient` + `/api/v1/dev/test-login` var — ölü kod (`devLogin` modülü ve örnek
   tenant yok), Metro tree-shaking yapmıyor; `packages/api-client/src/client.ts`'deki "tree-shaken" yorumu Metro için
@@ -35,7 +37,8 @@ step 7). Nothing lands here without that decision; noise is rejected in the tria
   ile sınırlansın — Deferred by: kullanıcı, 2026-11-18, triage; genişletildi: kullanıcı, 2026-11-19, ship kararı
 - **B-4** — TLS sonlandıran proxy arkasında `UseHttpsRedirection`/HSTS `Request.IsHttps` false görür (döngü / HSTS yok);
   `UseForwardedHeaders` yok — Source: spec 0001, review round 2 (`Hosting/SecurityHeaders.cs`) — Severity: info —
-  Recommendation: dağıtım/altyapı spec'inde bilinen proxy'lerle ForwardedHeaders bu adımlardan önce —
+  Recommendation: dağıtım/altyapı spec'inde bilinen proxy'lerle ForwardedHeaders bu adımlardan önce; giriş hız
+  sınırında IPv6 adresleri /64 ile gruplansın (spec 0003 review tur 1 #13) —
   Deferred by: kullanıcı, 2026-11-18, triage
 - **B-5** — Android TalkBack durum metnini iki kez okuyabilir (`announceForAccessibility` + `accessibilityLiveRegion`),
   doğrulanmadı — Source: spec 0001, review round 2 (`mobile/src/features/institution/InstitutionScreen.tsx`) —
@@ -68,3 +71,16 @@ step 7). Nothing lands here without that decision; noise is rejected in the tria
   Source: spec 0002, VERIFY bulgu 1 — Severity: low — Recommendation: `VerifyServerAsync`'in sonucu işlediğini sınayan
   bir ek nokta + test; davranış bugün gözlemle kanıtlı (collation adı değişince testler koşmadan açık mesajla düşer) —
   Deferred by: kullanıcı, 2026-11-19, VERIFY triage
+- **B-11** — Şifre değiştirmede "mevcut şifre" denemeleri sınırsız: ele geçirilmiş bir oturumla şifre kilitlenmeden tahmin
+  edilip değiştirilebilir — Source: spec 0003, review round 1 #4 (`Okul.Modules.Identity.Application/ChangePassword.cs`,
+  `/auth/password`) — Severity: medium — Recommendation: mevcut şifre doğrulaması giriş kilidine (kurum + e-posta anahtarı)
+  bağlansın, kilitliyken 429 + "Çok fazla başarısız deneme…" (yeni ekran durumu → spec değişikliği); spec 0004 (2FA) ile —
+  Deferred by: kullanıcı, 2026-11-19, triage
+- **B-12** — Girişte zaman farkı: bilinmeyen kurum kodunda hesap sorgusu çalışmıyor, bilinen kodda bir sorgu daha var
+  (PBKDF2'nin yanında küçük, ölçülmedi) — Source: spec 0003, review round 1 #8 (`Login.cs`) — Severity: low —
+  Recommendation: çok örnekli p50/p95 ölçümü; fark anlamlıysa bilinmeyen kodda da eşdeğer bir sorgu — Deferred by:
+  kullanıcı, 2026-11-19, triage (R-12)
+- **B-13** — `kimlik.login_throttles` ve `kimlik.sessions` için temizlik yok; rastgele e-postalı denemeler ve biten oturumlar
+  kalıcı satır bırakır; fix-1'den beri her hesabın ilk başarılı girişi de bir (sıfırlanmış) satır yazar — Source: spec 0003,
+  review round 1 #12 + round 2 I-2 — Severity: info — Recommendation: süresi geçmiş satırları
+  silen bir arka plan işi (Hangfire geldiğinde) — Deferred by: kullanıcı, 2026-11-19, triage

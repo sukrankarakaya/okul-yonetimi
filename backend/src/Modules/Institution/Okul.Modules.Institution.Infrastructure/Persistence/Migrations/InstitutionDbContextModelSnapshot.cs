@@ -54,6 +54,12 @@ namespace Okul.Modules.Institution.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("code");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -62,6 +68,10 @@ namespace Okul.Modules.Institution.Infrastructure.Persistence.Migrations
                         .UseCollation("tr-TR-x-icu");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("ux_institutions_code");
 
                     b.ToTable("institutions", "kurum");
                 });

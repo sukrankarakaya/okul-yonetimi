@@ -8,11 +8,18 @@
     <Project Path="src/Modules/Institution/Okul.Modules.Institution.Application/Okul.Modules.Institution.Application.csproj" />
     <Project Path="src/Modules/Institution/Okul.Modules.Institution.Infrastructure/Okul.Modules.Institution.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Identity/">
+    <Project Path="src/Modules/Identity/Okul.Modules.Identity.Domain/Okul.Modules.Identity.Domain.csproj" />
+    <Project Path="src/Modules/Identity/Okul.Modules.Identity.Contracts/Okul.Modules.Identity.Contracts.csproj" />
+    <Project Path="src/Modules/Identity/Okul.Modules.Identity.Application/Okul.Modules.Identity.Application.csproj" />
+    <Project Path="src/Modules/Identity/Okul.Modules.Identity.Infrastructure/Okul.Modules.Identity.Infrastructure.csproj" />
+  </Folder>
   <Folder Name="/src/WebApi/">
     <Project Path="src/WebApi/Okul.WebApi/Okul.WebApi.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Okul.Modules.Institution.UnitTests/Okul.Modules.Institution.UnitTests.csproj" />
+    <Project Path="tests/Okul.Modules.Identity.UnitTests/Okul.Modules.Identity.UnitTests.csproj" />
     <Project Path="tests/Okul.Architecture.Tests/Okul.Architecture.Tests.csproj" />
     <Project Path="tests/Okul.Testing.Database/Okul.Testing.Database.csproj" />
     <Project Path="tests/Okul.WebApi.IntegrationTests/Okul.WebApi.IntegrationTests.csproj" />

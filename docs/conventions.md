@@ -19,7 +19,10 @@ Sabitlendi: spec 0001 (walking skeleton), 2026-11-17. Kaynak: `global.json`, `ba
 - Backend: .NET SDK 10.0.404 (`global.json`, `rollForward: latestFeature`), ASP.NET Core / EF Core 10.0.15,
   Npgsql EF 10.0.3, nArchitecture 2.0.0 (`NArchitecture.Core.Mediator`, `…CrossCuttingConcerns.Exception`;
   MediatR kullanılmaz — A-1). Testler Microsoft.Testing.Platform ile (`global.json` → `test.runner`).
-- Test: xunit.v3 4.0.3, Shouldly 4.3.0, NSubstitute 6.2.0, NetArchTest 1.3.2, Npgsql 10.0.3 (test veritabanı yardımcıları, `Okul.Testing.Database`), Testcontainers 4.17.0 (`postgres:18`, yalnızca `OKUL_TEST_PG` tanımsızken — ADR 0001)
+- Test: xunit.v3 4.0.3, Shouldly 4.3.0, NSubstitute 6.2.0, NetArchTest 1.3.2, Npgsql 10.0.3 (test veritabanı yardımcıları, `Okul.Testing.Database`), Testcontainers 4.17.0 (`postgres:18`, yalnızca `OKUL_TEST_PG` tanımsızken — ADR 0001),
+  Microsoft.Extensions.TimeProvider.Testing 10.0.0 (`FakeTimeProvider`)
+- Kimlik: Microsoft.Extensions.Identity.Core 10.0.15 (yalnızca `PasswordHasher`, PBKDF2 — ASP.NET Core Identity'nin geri
+  kalanı kullanılmaz); mobil oturum: expo-secure-store ~58.0.3
 - Veritabanı: PostgreSQL 18
 - Node 24+ (`.nvmrc`; bu makinede 26 çalışıyor), npm workspaces (`web`, `mobile`, `packages/*`)
 - TypeScript **5.9.x** — 7.x değil: openapi-typescript ve Expo TS 5 JS API'sine bağlı. ESLint **9.x** — 10 değil:
@@ -52,12 +55,15 @@ Sabitlendi: spec 0001 (walking skeleton), 2026-11-17. Kaynak: `global.json`, `ba
 - ID: `Guid` v7.
 - Tenant: tenant'a ait her tabloda zorunlu `TenantId` + EF global query filter. `IgnoreQueryFilters()`
   yalnızca sistem işlerinde ve gerekçe yorumuyla.
+- Oturum öncesi (giriş, yenileme) kurum `ITenantScope` ile verilir; sorgular yine filtre altında çalışır. Tek kurumlar
+  arası okuma: kurum kodu → kurum kimliği (`IInstitutionDirectory`, yalnızca kimlik döndürür). Tek kiracısız bağlam:
+  `LoginThrottleDbContext` (mimari testinde adıyla izinli) — spec 0003.
 - Silme: kişisel veride soft delete + saklama süresi sonunda anonimleştirme. Makbuz ve audit log silinmez.
 - Telefon E.164 (`+905…`), e-posta küçük harfe normalize edilerek saklanır.
 - Kişisel veri alanları `[Sensitive]` ile işaretlenir; log'da otomatik maskelenir.
 
 ## Known traps
-- T-1 Türkçe I/ı/İ/i: kültüre bağlı `ToLower/ToUpper/Compare` — Invariant/Ordinal kullan; UI `tr-TR`; DB aramada ICU collation `tr-TR-x-icu` — from bootstrap
+- T-1 Türkçe I/ı/İ/i: kültüre bağlı `ToLower/ToUpper/Compare` — Invariant/Ordinal kullan; UI `tr-TR`; DB aramada ICU collation `tr-TR-x-icu` — from bootstrap; `ToUpperInvariant('İ')` `İ` kalır — bir değeri karşılaştırmak için normalize eden **tek** fonksiyon kullanılır (kurum kodu: `InstitutionCodeFormat`, e-posta: `EmailAddress`), aynı değerin bir yolda bir fonksiyonla, başka yolda başka biçimde normalize edilmesi kurum kodunun varlığını sızdırdı (spec 0003 review round 1 #3)
 - T-2 `IgnoreQueryFilters()`, ham SQL, Dapper tenant filtresini atlar — ham sorgu yalnızca Raporlama'da, `TenantId` elle + izolasyon testi — from bootstrap
 - T-3 Hangfire işinde tenant bağlamı yok — her iş `TenantId` parametresi alır, başta bağlam kurulur, yoksa fail — from bootstrap
 - T-4 `DateTime.Now` / `DateTimeKind` — Npgsql `timestamptz`'ye UTC olmayanı reddeder; `TimeProvider` + `DateTimeOffset` UTC, vade `DateOnly` — from bootstrap
@@ -73,6 +79,7 @@ Sabitlendi: spec 0001 (walking skeleton), 2026-11-17. Kaynak: `global.json`, `ba
 - T-14 `DROP DATABASE … WITH (FORCE)` yalnızca rolün sonlandırabileceği oturumları kapatır; başka (süper) rolün oturumu varsa ya da veritabanı şablonsa hata verir — toplu temizlikte (sweep) DROP hatası yakalanıp uyarıya çevrilir, koşu düşmez — from spec 0002 review round 1 (L-1)
 - T-15 `Directory.Packages.props`'a transitif bir paketin `PackageVersion`'ı eklenince onu kullanan her projenin `packages.lock.json`'u `CentralTransitive` olur (ürün projeleri dahil, sürüm aynı kalsa da) — plan dosya listesine bu lock dosyaları da yazılır — from spec 0002 review round 1 (L-4)
 - T-16 xunit v3 `TestContext.Current.CancellationToken` iptalde `finally` temizliğini de iptal eder — test temizliği `CancellationToken.None` ile yapılır, her adım ayrı `try` içinde (biri düşerse diğerleri yine koşar) — from spec 0002 review round 2 (L-1)
+- T-17 Vitest'te `@testing-library/jest-dom/vitest` yan etki import'u matcher'ları bazı dosya sıralarında koşunun `expect`'ine bağlamaz ("Invalid Chai property: toBeInTheDocument") — setup dosyasında `expect.extend(matchers)` ile açıkça bağlanır; yan etki import'u yalnızca tipler için kalır (`web/src/test/setup.ts`) — from spec 0003 fix round 1 (A-3(a)), review round 2 (I-4)
 
 ## Enforced by tooling
 Spec 0001'den beri `scripts/check.conf`'ta:
