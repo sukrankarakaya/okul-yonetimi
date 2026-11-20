@@ -15,5 +15,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Modules\Parents\Okul.Modules.Parents.Domain\Okul.Modules.Parents.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Parents\Okul.Modules.Parents.Application\Okul.Modules.Parents.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Parents\Okul.Modules.Parents.Infrastructure\Okul.Modules.Parents.Infrastructure.csproj" />
   </ItemGroup>
 </Project>
