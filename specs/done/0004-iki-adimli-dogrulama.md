@@ -1,6 +1,6 @@
 # Spec 0004 — Personel için iki adımlı doğrulama (2FA)
 
-- Status: In progress
+- Status: Shipped
 - Mode: lite
 - Plan: `specs/plans/0004-plan.md`
 - Self-critique: done
@@ -110,48 +110,48 @@ cihazı hatırla", SSO (Faz 2), arayüzden kullanıcı yönetimi.
   (audit log spec'iyle); veli hesapları (0005); B-12, B-13.
 
 ## Acceptance criteria
-- [ ] AC-1 — Yönetici, Muhasebe ve Öğretmen + Muhasebe hesapları 2FA kurulu değilken doğru şifreyle girdiğinde oturum
+- [x] AC-1 — Yönetici, Muhasebe ve Öğretmen + Muhasebe hesapları 2FA kurulu değilken doğru şifreyle girdiğinde oturum
   açılmaz, Kurulum ekranı gelir; bu adımdayken hiçbir kurum verisi okunamaz; yalnızca Öğretmen rolü taşıyan ve 2FA'sı
   kapalı hesap doğrudan Kurum bilgisi ekranına geçer.
-- [ ] AC-2 — Kurulumda QR kodu ve elle girilebilen anahtar görünür; doğrulama uygulamasının ürettiği geçerli kodla kurulum
+- [x] AC-2 — Kurulumda QR kodu ve elle girilebilen anahtar görünür; doğrulama uygulamasının ürettiği geçerli kodla kurulum
   tamamlanır; hatalı kodla tamamlanmaz ve hatalı kod kilit sayacına eklenir; yarıda bırakılan ya da "Vazgeç" ile terk
   edilen kurulum sonraki girişte yeni bir anahtarla baştan başlar.
-- [ ] AC-3 — Kurulum tamamlanınca 10 kurtarma kodu bir kez gösterilir ve "Kaydettim, devam et" ile Kurum bilgisi
+- [x] AC-3 — Kurulum tamamlanınca 10 kurtarma kodu bir kez gösterilir ve "Kaydettim, devam et" ile Kurum bilgisi
   ekranına geçilir; kodlar başka hiçbir yerden yeniden görüntülenemez.
-- [ ] AC-4 — 2FA'sı açık hesap doğru şifreden sonra Doğrulama ekranına geçer; geçerli kodla oturum açılır ve Kurum
+- [x] AC-4 — 2FA'sı açık hesap doğru şifreden sonra Doğrulama ekranına geçer; geçerli kodla oturum açılır ve Kurum
   bilgisi görünür; kod girilmeden, hatalı kodla ya da şifre adımından 5 dakika sonra oturum açılmaz (süre dolunca
   "Doğrulama süresi doldu" ile Giriş ekranı); "Vazgeç" Giriş ekranına döner ve o adım artık kullanılamaz; oturum
   yenilemesi kod sormaz.
-- [ ] AC-5 — Bir önceki ve bir sonraki 30 sn penceresinin kodu kabul edilir, iki pencere öteki reddedilir; kabul edilmiş
+- [x] AC-5 — Bir önceki ve bir sonraki 30 sn penceresinin kodu kabul edilir, iki pencere öteki reddedilir; kabul edilmiş
   bir kod aynı hesapta ikinci kez reddedilir; boşluklu kod kabul edilir.
-- [ ] AC-6 — Kullanılmamış bir kurtarma kodu doğrulama kodu yerine oturum açar (büyük/küçük harf, tire ve boşluk farkı
+- [x] AC-6 — Kullanılmamış bir kurtarma kodu doğrulama kodu yerine oturum açar (büyük/küçük harf, tire ve boşluk farkı
   yok); aynı kurtarma kodu ikinci kez reddedilir; üretilen kodlar `XXXX-XXXX` biçimindedir ve 0, O, 1, I, L içermez.
-- [ ] AC-7 — Doğrulama adımındaki yanlış kodlar şifre hatalarıyla aynı sayaca eklenir: örneğin 3 yanlış şifre + 2 yanlış
+- [x] AC-7 — Doğrulama adımındaki yanlış kodlar şifre hatalarıyla aynı sayaca eklenir: örneğin 3 yanlış şifre + 2 yanlış
   kod kilitler; kilitliyken doğru kod reddedilir; 15 dakika sonra açılır. Şifre değiştirmede 5 yanlış mevcut şifre aynı
   kilidi tetikler ve kilitliyken doğru mevcut şifreyle de şifre değiştirilemez (B-11). Aynı kaynaktan dakikada 21. kod
   denemesi "çok fazla deneme" yanıtını alır.
-- [ ] AC-8 — Yalnızca Öğretmen rolü taşıyan kullanıcı Güvenlik ekranından 2FA'yı açar (kurulum + kurtarma kodları) ve
+- [x] AC-8 — Yalnızca Öğretmen rolü taşıyan kullanıcı Güvenlik ekranından 2FA'yı açar (kurulum + kurtarma kodları) ve
   geçerli kodla kapatır; hatalı kodla kapatamaz; zorunlu hesapta kapatma seçeneği görünmez ve kapatma isteği reddedilir.
-- [ ] AC-9 — Geçerli kodla kurtarma kodları yenilenir: yeni 10 kod bir kez gösterilir ve eski kodların hiçbiri artık
+- [x] AC-9 — Geçerli kodla kurtarma kodları yenilenir: yeni 10 kod bir kez gösterilir ve eski kodların hiçbiri artık
   oturum açmaz; hatalı kodla yenilenmez.
-- [ ] AC-10 — Yönetim komutu bir hesabın 2FA'sını sıfırlar: hesabın açık oturumları bir sonraki istekte reddedilir; zorunlu
+- [x] AC-10 — Yönetim komutu bir hesabın 2FA'sını sıfırlar: hesabın açık oturumları bir sonraki istekte reddedilir; zorunlu
   hesap sonraki girişte kurulumu baştan yapar; çıktısı yalnızca sıfırlama bilgisi ve kapanan oturum sayısıdır (gizli
   bilgi yok); komut olmayan hesap için açık bir hata verir ve hiçbir şeyi değiştirmez.
-- [ ] AC-11 — Doğrulama anahtarı ve kurtarma kodları veritabanında okunabilir biçimde bulunmaz; hiçbir log, hata yanıtı
+- [x] AC-11 — Doğrulama anahtarı ve kurtarma kodları veritabanında okunabilir biçimde bulunmaz; hiçbir log, hata yanıtı
   veya çıktıda görünmez; test girişi 2FA'yı yalnızca geliştirme/test ortamında atlar ve üretimde bulunmaz (0003 AC-9
   yeşil kalır).
-- [ ] AC-12 — Güvenlik ekranı kalan kurtarma kodu sayısını doğru gösterir (her kullanımda bir azalır, yenilemede 10
+- [x] AC-12 — Güvenlik ekranı kalan kurtarma kodu sayısını doğru gösterir (her kullanımda bir azalır, yenilemede 10
   olur); 3 veya daha az kaldığında "Kurtarma kodlarınız azaldı. Yenilemeniz önerilir." görünür.
-- [ ] AC-13 — Web ve mobilde Doğrulama, Kurulum, Kurtarma kodları ve Güvenlik ekranlarının User experience'taki her
+- [x] AC-13 — Web ve mobilde Doğrulama, Kurulum, Kurtarma kodları ve Güvenlik ekranlarının User experience'taki her
   durumu kendi metniyle görünür; erişilebilirlik maddeleri (sayısal klavye, tek kullanımlık kod otomatik doldurma,
   anahtarın metin olarak varlığı, etiketler, Enter, duyurular) sağlanır.
 
 ## Definition of Done
-- [ ] Every acceptance criterion mapped to proof (test or reproducible observation)
-- [ ] `scripts/check` green
-- [ ] Independent review done; real findings fixed, noise rejected with written rationale, deferred ones in `specs/backlog.md`
-- [ ] Docs / ADRs updated if behavior or architecture changed
-- [ ] Spec moved to `specs/done/` (it becomes immutable there)
+- [x] Every acceptance criterion mapped to proof (test or reproducible observation)
+- [x] `scripts/check` green
+- [x] Independent review done; real findings fixed, noise rejected with written rationale, deferred ones in `specs/backlog.md`
+- [x] Docs / ADRs updated if behavior or architecture changed
+- [x] Spec moved to `specs/done/` (it becomes immutable there)
 
 ## Scorecard (fill at ship — honest numbers make the process improvable)
 | Metric | Value |
