@@ -7,6 +7,9 @@
   <ItemGroup>
     <ProjectReference Include="..\Okul.Modules.Parents.Domain\Okul.Modules.Parents.Domain.csproj" />
     <ProjectReference Include="..\Okul.Modules.Parents.Application\Okul.Modules.Parents.Application.csproj" />
-    <ProjectReference Include="..\..\..\..\Core\Okul.Core\Okul.Core.csproj" />
+    <ProjectReference Include="..\..\..\Core\Okul.Core\Okul.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Okul.Modules.Parents.UnitTests" />
   </ItemGroup>
 </Project>

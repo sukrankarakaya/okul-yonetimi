@@ -511,6 +511,7 @@
         "dependencies": {
           "Microsoft.EntityFrameworkCore": "[10.0.15, )",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.3, )",
+          "Okul.Core": "[1.0.0, )",
           "Okul.Modules.Parents.Application": "[1.0.0, )",
           "Okul.Modules.Parents.Domain": "[1.0.0, )"
         }
