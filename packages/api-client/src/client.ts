@@ -84,6 +84,8 @@ export type GuardianConsent = components['schemas']['GuardianConsentResponse'];
 
 export type GuardianConsentResult =
   | { kind: 'ok'; consent: GuardianConsent }
+  /** A staff session: there is no veli rıza to give. */
+  | { kind: 'notGuardian' }
   | { kind: 'unauthenticated' }
   | { kind: 'network' };
 
@@ -465,7 +467,7 @@ export function createOkulClient(options: OkulClientOptions): OkulClient {
     if ('network' in outcome) return { kind: 'network' };
     if ('ended' in outcome) return { kind: 'unauthenticated' };
     const { data, response } = outcome.result;
-    if (!response.ok || !data) return response.status === 403 ? { kind: 'unauthenticated' } : { kind: 'network' };
+    if (!response.ok || !data) return response.status === 403 ? { kind: 'notGuardian' } : { kind: 'network' };
     return { kind: 'ok', consent: data };
   }
 

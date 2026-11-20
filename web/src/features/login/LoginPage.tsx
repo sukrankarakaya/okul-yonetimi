@@ -13,6 +13,7 @@ export const loginTexts = {
   locked: 'Çok fazla başarısız deneme. 15 dakika sonra tekrar deneyin.',
   network: 'Bağlantı kurulamadı, tekrar deneyin.',
   expired: 'Oturumunuzun süresi doldu, tekrar giriş yapın.',
+  guardian: 'Veli girişi',
 } as const;
 
 type Field = 'code' | 'email' | 'password';
@@ -26,9 +27,11 @@ export interface LoginPageProps {
   notice?: string;
   initialCode?: string;
   initialEmail?: string;
+  /** Spec 0007: "Veli girişi" opens the veli login (Requirement 12). */
+  onGuardian?: () => void;
 }
 
-export function LoginPage({ login, onLoggedIn, onStep, notice, initialCode = '', initialEmail = '' }: LoginPageProps) {
+export function LoginPage({ login, onLoggedIn, onStep, notice, initialCode = '', initialEmail = '', onGuardian }: LoginPageProps) {
   const id = useId();
   const [values, setValues] = useState<Record<Field, string>>({ code: initialCode, email: initialEmail, password: '' });
   const [missing, setMissing] = useState<Field[]>([]);
@@ -120,6 +123,15 @@ export function LoginPage({ login, onLoggedIn, onStep, notice, initialCode = '',
           {sending ? <span role="status">Yükleniyor…</span> : loginTexts.submit}
         </button>
       </form>
+      {onGuardian ? (
+        <button
+          type="button"
+          onClick={onGuardian}
+          style={{ background: 'none', border: 0, color: '#1d4ed8', fontSize: 15, fontWeight: 600, minHeight: 44, marginTop: 16, padding: 0, cursor: 'pointer' }}
+        >
+          {loginTexts.guardian}
+        </button>
+      ) : null}
     </main>
   );
 }

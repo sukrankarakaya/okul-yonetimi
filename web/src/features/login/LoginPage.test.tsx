@@ -110,4 +110,14 @@ describe('LoginPage', () => {
     expect(screen.getByLabelText('Şifre')).toHaveAttribute('autocomplete', 'current-password');
     expect(screen.getByLabelText('Şifre')).toHaveAttribute('type', 'password');
   });
+
+  it('spec 0007: "Veli girişi" opens the veli login', async () => {
+    const user = userEvent.setup();
+    const onGuardian = vi.fn();
+    render(<LoginPage login={vi.fn()} onLoggedIn={() => undefined} onGuardian={onGuardian} />);
+
+    await user.click(screen.getByRole('button', { name: 'Veli girişi' }));
+
+    expect(onGuardian).toHaveBeenCalledOnce();
+  });
 });

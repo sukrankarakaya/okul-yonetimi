@@ -1,5 +1,8 @@
 import { createOkulClient, type OkulClient } from '@okul/api-client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ConsentPage } from './features/guardian-login/ConsentPage';
+import { GuardianCodePage } from './features/guardian-login/GuardianCodePage';
+import { GuardianPhonePage } from './features/guardian-login/GuardianPhonePage';
 import { InstitutionPage } from './features/institution/InstitutionPage';
 import type { CodeOutcome } from './features/login/CodeForm';
 import { codeTexts } from './features/login/CodeForm';
@@ -38,19 +41,32 @@ type Screen =
   | { kind: 'recovery'; codes: string[]; next: 'institution' | 'security'; notice?: string }
   | { kind: 'security'; notice?: string }
   | { kind: 'institution'; notice?: string }
-  | { kind: 'password' };
+  | { kind: 'password' }
+  // Spec 0007 — veli girişi.
+  | { kind: 'guardianPhone'; notice?: string; code?: string; phone?: string }
+  | { kind: 'guardianCode'; code: string; phone: string }
+  | { kind: 'consent' };
 
 export function App({ client: injected }: { client?: OkulClient } = {}) {
   const client = useMemo(() => injected ?? createWebClient(), [injected]);
   const [screen, setScreen] = useState<Screen>({ kind: 'checking' });
+  // Spec 0007: a veli session — no staff actions, and an ended session returns to Veli Girişi.
+  const [guardian, setGuardian] = useState(false);
 
   useEffect(() => {
     let active = true;
-    void client.hasSession().then((has) => {
-      if (active) {
-        setScreen(has ? { kind: 'institution' } : { kind: 'login' });
+    void (async () => {
+      if (!(await client.hasSession())) {
+        if (active) setScreen({ kind: 'login' });
+        return;
       }
-    });
+      // A veli without the current rıza sees the KVKK screen first (spec 0007, AC-4); a staff session is "notGuardian".
+      const consent = await client.getGuardianConsent();
+      if (!active) return;
+      const isGuardian = consent.kind === 'ok';
+      setGuardian(isGuardian);
+      setScreen(isGuardian && !consent.consent.accepted ? { kind: 'consent' } : { kind: 'institution' });
+    })();
     return () => {
       active = false;
     };
@@ -58,9 +74,16 @@ export function App({ client: injected }: { client?: OkulClient } = {}) {
 
   const loadInstitution = useCallback(() => client.getMyInstitution(), [client]);
   const sessionEnded = useCallback(
-    (expired: boolean) => setScreen({ kind: 'login', notice: expired ? loginTexts.expired : undefined }),
-    [],
+    (expired: boolean) =>
+      setScreen(
+        guardian
+          ? { kind: 'guardianPhone', notice: expired ? loginTexts.expired : undefined }
+          : { kind: 'login', notice: expired ? loginTexts.expired : undefined },
+      ),
+    [guardian],
   );
+  const loadConsent = useCallback(() => client.getGuardianConsent(), [client]);
+  const consentEnded = useCallback(() => sessionEnded(true), [sessionEnded]);
   const stepEnded = useCallback(() => setScreen({ kind: 'login', notice: codeTexts.stepEnded }), []);
   const loadStatus = useCallback(() => client.getTwoFactor(), [client]);
 
@@ -96,6 +119,41 @@ export function App({ client: injected }: { client?: OkulClient } = {}) {
           onLoggedIn={() => setScreen({ kind: 'institution' })}
           onStep={(next, step) => setScreen({ kind: next, step })}
           notice={screen.notice}
+          onGuardian={() => setScreen({ kind: 'guardianPhone' })}
+        />
+      );
+    case 'guardianPhone':
+      return (
+        <GuardianPhonePage
+          request={(code, phone) => client.requestGuardianCode(code, phone)}
+          onSent={(code, phone) => setScreen({ kind: 'guardianCode', code, phone })}
+          notice={screen.notice}
+          initialCode={screen.code}
+          initialPhone={screen.phone}
+        />
+      );
+    case 'guardianCode':
+      return (
+        <GuardianCodePage
+          verify={(code) => client.verifyGuardianCode(screen.code, screen.phone, code)}
+          resend={() => client.requestGuardianCode(screen.code, screen.phone)}
+          onCancel={() => {
+            void client.cancelGuardianCode(screen.code, screen.phone);
+            setScreen({ kind: 'guardianPhone', code: screen.code, phone: screen.phone });
+          }}
+          onLoggedIn={(consentRequired) => {
+            setGuardian(true);
+            setScreen(consentRequired ? { kind: 'consent' } : { kind: 'institution' });
+          }}
+        />
+      );
+    case 'consent':
+      return (
+        <ConsentPage
+          load={loadConsent}
+          accept={() => client.acceptGuardianConsent()}
+          onAccepted={() => setScreen({ kind: 'institution' })}
+          onSessionEnded={consentEnded}
         />
       );
     case 'verify':
@@ -173,10 +231,10 @@ export function App({ client: injected }: { client?: OkulClient } = {}) {
           loadInstitution={loadInstitution}
           notice={screen.notice}
           onSessionEnded={sessionEnded}
-          onChangePassword={() => setScreen({ kind: 'password' })}
-          onSecurity={() => setScreen({ kind: 'security' })}
+          onChangePassword={guardian ? undefined : () => setScreen({ kind: 'password' })}
+          onSecurity={guardian ? undefined : () => setScreen({ kind: 'security' })}
           onLogout={() => {
-            void client.logout().finally(() => setScreen({ kind: 'login' }));
+            void client.logout().finally(() => setScreen(guardian ? { kind: 'guardianPhone' } : { kind: 'login' }));
           }}
         />
       );

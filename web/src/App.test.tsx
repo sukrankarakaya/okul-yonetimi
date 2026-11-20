@@ -314,3 +314,71 @@ describe('api-client two-step login', () => {
     expect(await c.getTwoFactor()).toEqual({ kind: 'unauthenticated' });
   });
 });
+
+describe('App (web) — veli girişi (spec 0007)', () => {
+  const veliSession = { roles: ['Guardian'], accessExpiresAt: '2026-11-20T10:15:00Z', sessionExpiresAt: '2026-11-20T22:00:00Z' };
+  const consent = (accepted: boolean) => ({ accepted, textVersion: 'taslak', text: 'Aydınlatma metni.' });
+
+  it('Giriş → "Veli girişi" → telefon → kod → KVKK → Kurum bilgisi, without staff actions; logout returns to Veli Girişi', async () => {
+    const user = userEvent.setup();
+    const { fetch, calls } = backend({
+      'GET /api/v1/auth/session': [() => json(401)],
+      'POST /api/v1/auth/refresh': [() => json(401)],
+      'POST /api/v1/auth/guardian/code': [() => json(200, { message: 'x' })],
+      'POST /api/v1/auth/guardian/verify': [() => json(200, { session: veliSession, consentRequired: true })],
+      'GET /api/v1/guardian/consent': [() => json(200, consent(false))],
+      'POST /api/v1/guardian/consent': [() => json(200, consent(true))],
+      'GET /api/v1/institution/me': [() => json(200, institution)],
+      'POST /api/v1/auth/logout': [() => new Response(null, { status: 204 })],
+    });
+    render(<App client={createOkulClient({ baseUrl: 'http://api.test', kind: 'web', fetch })} />);
+
+    await user.click(await screen.findByRole('button', { name: 'Veli girişi' }));
+    await user.type(screen.getByLabelText('Kurum kodu'), 'ATATURK-IST');
+    await user.type(screen.getByLabelText('Telefon numarası'), '0532 123 45 67');
+    await user.click(screen.getByRole('button', { name: 'SMS kodu gönder' }));
+    await user.type(await screen.findByLabelText('6 haneli kod'), '482913');
+    await user.click(screen.getByRole('button', { name: 'Doğrula' }));
+    await user.click(await screen.findByLabelText('Verilerimin işlenmesine rıza veriyorum'));
+    await user.click(screen.getByRole('button', { name: 'Devam et' }));
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Atatürk Koleji' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Şifremi değiştir' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Çıkış yap' }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Veli Girişi' })).toBeInTheDocument();
+    expect(calls).toContain('POST /api/v1/guardian/consent');
+    expect(localStorage.length).toBe(0);
+  });
+
+  it('"Vazgeç" cancels the code and returns to Veli Girişi with the fields kept', async () => {
+    const user = userEvent.setup();
+    const { fetch, calls } = backend({
+      'GET /api/v1/auth/session': [() => json(401)],
+      'POST /api/v1/auth/refresh': [() => json(401)],
+      'POST /api/v1/auth/guardian/code': [() => json(200, { message: 'x' })],
+      'POST /api/v1/auth/guardian/cancel': [() => new Response(null, { status: 204 })],
+    });
+    render(<App client={createOkulClient({ baseUrl: 'http://api.test', kind: 'web', fetch })} />);
+
+    await user.click(await screen.findByRole('button', { name: 'Veli girişi' }));
+    await user.type(screen.getByLabelText('Kurum kodu'), 'ATATURK-IST');
+    await user.type(screen.getByLabelText('Telefon numarası'), '0532 123 45 67');
+    await user.click(screen.getByRole('button', { name: 'SMS kodu gönder' }));
+    await user.click(await screen.findByRole('button', { name: 'Vazgeç' }));
+
+    expect(await screen.findByLabelText('Telefon numarası')).toHaveValue('0532 123 45 67');
+    expect(screen.getByLabelText('Kurum kodu')).toHaveValue('ATATURK-IST');
+    expect(calls).toContain('POST /api/v1/auth/guardian/cancel');
+  });
+
+  it('a veli session without the current rıza opens on KVKK', async () => {
+    const { fetch } = backend({
+      'GET /api/v1/auth/session': [() => json(200, veliSession)],
+      'GET /api/v1/guardian/consent': [() => json(200, consent(false)), () => json(200, consent(false))],
+    });
+    render(<App client={createOkulClient({ baseUrl: 'http://api.test', kind: 'web', fetch })} />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'KVKK Aydınlatması' })).toBeInTheDocument();
+  });
+});
+
