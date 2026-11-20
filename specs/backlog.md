@@ -84,3 +84,6 @@ step 7). Nothing lands here without that decision; noise is rejected in the tria
   kalıcı satır bırakır; fix-1'den beri her hesabın ilk başarılı girişi de bir (sıfırlanmış) satır yazar — Source: spec 0003,
   review round 1 #12 + round 2 I-2 — Severity: info — Recommendation: süresi geçmiş satırları
   silen bir arka plan işi (Hangfire geldiğinde) — Deferred by: kullanıcı, 2026-11-19, triage
+- **B-16** — Mobil Kurulum ekranında 2FA anahtarı satır ortasında kırılıyor (okunurluk; "Kopyala" var) — Source: spec 0004,
+  VERIFY round 1 #3 (`mobile/src/features/login/SetupStep.tsx`) — Severity: info — Recommendation: anahtarı 4'lü gruplarla
+  ve satır kırılmadan göster — Deferred by: kullanıcı, 2026-11-20, triage
