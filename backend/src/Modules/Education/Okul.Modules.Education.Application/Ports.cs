@@ -20,3 +20,8 @@ public interface ILessonStore
     Task<IReadOnlyList<Lesson>> GetByCourseAsync(Guid courseId, CancellationToken cancellationToken);
     Task AddAsync(Lesson lesson, CancellationToken cancellationToken);
 }
+
+public interface ILessonCompletionStore
+{
+    Task AddAsync(Domain.LessonCompletion completion, CancellationToken cancellationToken);
+}
