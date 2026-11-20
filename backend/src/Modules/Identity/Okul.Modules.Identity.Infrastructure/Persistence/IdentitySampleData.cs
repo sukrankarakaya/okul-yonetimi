@@ -25,7 +25,12 @@ public static class IdentitySampleData
     public static readonly IReadOnlyList<SampleAccount> All =
         [Administrator, Teacher, Accountant, TeacherAndAccountant, GuardianOnly, OtherKurumAdministrator];
 
-    public static async Task SeedAsync(IdentityDbContext db, string password, CancellationToken cancellationToken = default)
+    /// <param name="protectedTwoFactorSecret">
+    /// Testing only (spec 0004, plan R5): every sample whose roles make 2FA mandatory is seeded with it set up. Development
+    /// passes null — the accounts come without 2FA, so the real setup flow is what a developer sees.
+    /// </param>
+    public static async Task SeedAsync(
+        IdentityDbContext db, string password, string? protectedTwoFactorSecret = null, CancellationToken cancellationToken = default)
     {
         if (await db.StaffAccounts.IgnoreQueryFilters().AnyAsync(cancellationToken)) // system job: seeding spans tenants (T-2)
         {
@@ -35,7 +40,13 @@ public static class IdentitySampleData
         var hasher = new StaffPasswordHasher();
         foreach (var sample in All)
         {
-            db.StaffAccounts.Add(StaffAccount.Create(sample.Id, sample.TenantId, sample.Email, hasher.Hash(password), sample.Roles));
+            var account = StaffAccount.Create(sample.Id, sample.TenantId, sample.Email, hasher.Hash(password), sample.Roles);
+            if (protectedTwoFactorSecret is not null && account.TwoFactorRequired)
+            {
+                account.EnableTwoFactor(protectedTwoFactorSecret, confirmedStep: 0);
+            }
+
+            db.StaffAccounts.Add(account);
         }
 
         await db.SaveChangesAsync(cancellationToken);

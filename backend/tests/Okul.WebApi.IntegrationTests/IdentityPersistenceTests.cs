@@ -217,7 +217,7 @@ public sealed class IdentityPersistenceTests
         services.AddSingleton<ITenantContext>(new FixedTenant(tenant));
         services.AddSingleton<ITenantScope, NoScope>();
         services.AddSingleton(TimeProvider.System);
-        services.AddIdentityInfrastructure(_api.ConnectionString);
+        services.AddIdentityInfrastructure(_api.ConnectionString, new TwoFactorKey(_api.TwoFactorKey));
         return services.BuildServiceProvider();
     }
 

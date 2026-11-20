@@ -24,6 +24,70 @@ internal sealed class StaffAccountStore : IStaffAccountStore
         await _db.StaffAccounts.AddAsync(account, cancellationToken);
 
     public Task SaveChangesAsync(CancellationToken cancellationToken) => _db.SaveChangesAsync(cancellationToken);
+
+    public async Task<bool> TrySaveChangesAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _db.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            _db.ChangeTracker.Clear();
+            return false;
+        }
+    }
+}
+
+internal sealed class LoginChallengeStore : ILoginChallengeStore
+{
+    private readonly IdentityDbContext _db;
+
+    public LoginChallengeStore(IdentityDbContext db)
+    {
+        _db = db;
+    }
+
+    public Task<LoginChallenge?> FindAsync(Guid challengeId, CancellationToken cancellationToken) =>
+        _db.LoginChallenges.SingleOrDefaultAsync(c => c.Id == challengeId, cancellationToken);
+
+    public async Task AddAsync(LoginChallenge challenge, CancellationToken cancellationToken) =>
+        await _db.LoginChallenges.AddAsync(challenge, cancellationToken);
+
+    public Task EndAllAsync(Guid accountId, DateTimeOffset now, CancellationToken cancellationToken) =>
+        _db.LoginChallenges
+            .Where(c => c.AccountId == accountId && c.EndedAt == null)
+            .ExecuteUpdateAsync(set => set.SetProperty(c => c.EndedAt, now), cancellationToken);
+}
+
+internal sealed class RecoveryCodeStore : IRecoveryCodeStore
+{
+    private readonly IdentityDbContext _db;
+
+    public RecoveryCodeStore(IdentityDbContext db)
+    {
+        _db = db;
+    }
+
+    public async Task<IReadOnlyList<RecoveryCode>> ListUnusedAsync(Guid accountId, CancellationToken cancellationToken) =>
+        await _db.RecoveryCodes.Where(c => c.AccountId == accountId && c.UsedAt == null).ToListAsync(cancellationToken);
+
+    public Task<int> CountUnusedAsync(Guid accountId, CancellationToken cancellationToken) =>
+        _db.RecoveryCodes.CountAsync(c => c.AccountId == accountId && c.UsedAt == null, cancellationToken);
+
+    /// <summary>The delete runs now; the new codes are written with the caller's SaveChanges (one unit with the account).</summary>
+    public async Task ReplaceAsync(Guid tenantId, Guid accountId, IEnumerable<string> codeHashes, CancellationToken cancellationToken)
+    {
+        await DeleteAllAsync(accountId, cancellationToken);
+        foreach (var hash in codeHashes)
+        {
+            await _db.RecoveryCodes.AddAsync(RecoveryCode.Create(Guid.CreateVersion7(), tenantId, accountId, hash), cancellationToken);
+        }
+    }
+
+    public Task DeleteAllAsync(Guid accountId, CancellationToken cancellationToken) =>
+        _db.RecoveryCodes.Where(c => c.AccountId == accountId).ExecuteDeleteAsync(cancellationToken);
 }
 
 internal sealed class SessionStore : ISessionStore

@@ -64,6 +64,12 @@ internal sealed class FakeAccounts(FakeTenantScope scope) : IStaffAccountStore
         return Task.CompletedTask;
     }
 
+    public Task<bool> TrySaveChangesAsync(CancellationToken cancellationToken)
+    {
+        Saves++;
+        return Task.FromResult(true);
+    }
+
     // No tenant = no rows (fail closed), as the real filter.
     private IEnumerable<StaffAccount> Visible() => All.Where(a => scope.Current is { } t && a.TenantId == t);
 }

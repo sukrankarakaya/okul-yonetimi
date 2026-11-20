@@ -38,6 +38,9 @@ public sealed class ApiFixture : IAsyncLifetime
 
     public byte[] SigningKey { get; } = RandomNumberGenerator.GetBytes(32);
 
+    /// <summary>The 2FA key for this run (spec 0004, plan R2) — every factory shares it, so a secret set up in one is read in another.</summary>
+    public byte[] TwoFactorKey { get; } = RandomNumberGenerator.GetBytes(32);
+
     /// <summary>The sample accounts' password for this run.</summary>
     public string SamplePassword { get; } = "ornek-" + Convert.ToHexString(RandomNumberGenerator.GetBytes(12));
 
@@ -100,7 +103,7 @@ public sealed class ApiFixture : IAsyncLifetime
     /// <param name="loginsPerMinute">The source login limit (spec 0003, Requirement 4); default out of reach;
     /// <c>null</c> sets nothing, so the production default applies (VERIFY round 1 F-1).</param>
     public OkulApiFactory CreateFactory(string environment, TimeProvider? time = null, int? loginsPerMinute = UnlimitedLoginsPerMinute) =>
-        new(environment, ConnectionString, Convert.ToBase64String(SigningKey), time, loginsPerMinute);
+        new(environment, ConnectionString, Convert.ToBase64String(SigningKey), Convert.ToBase64String(TwoFactorKey), time, loginsPerMinute);
 
     /// <summary>A client signed in through the Testing-only test login (any role, incl. Guardian).</summary>
     public async Task<HttpClient> ClientForAsync(Guid tenantId, string role)
@@ -233,14 +236,17 @@ public sealed class OkulApiFactory : WebApplicationFactory<Program>
     private readonly string _environment;
     private readonly string _connectionString;
     private readonly string _signingKey;
+    private readonly string _twoFactorKey;
     private readonly TimeProvider? _time;
     private readonly int? _loginsPerMinute;
 
-    public OkulApiFactory(string environment, string connectionString, string signingKey, TimeProvider? time, int? loginsPerMinute)
+    public OkulApiFactory(
+        string environment, string connectionString, string signingKey, string twoFactorKey, TimeProvider? time, int? loginsPerMinute)
     {
         _environment = environment;
         _connectionString = connectionString;
         _signingKey = signingKey;
+        _twoFactorKey = twoFactorKey;
         _time = time;
         _loginsPerMinute = loginsPerMinute;
     }
@@ -250,6 +256,7 @@ public sealed class OkulApiFactory : WebApplicationFactory<Program>
         builder.UseEnvironment(_environment);
         builder.UseSetting("ConnectionStrings:Okul", _connectionString);
         builder.UseSetting("Auth:SigningKey", _signingKey);
+        builder.UseSetting("Auth:TwoFactorKey", _twoFactorKey);
         if (_loginsPerMinute is { } loginsPerMinute)
         {
             builder.UseSetting("Auth:LoginRateLimitPerMinute", loginsPerMinute.ToString(System.Globalization.CultureInfo.InvariantCulture));

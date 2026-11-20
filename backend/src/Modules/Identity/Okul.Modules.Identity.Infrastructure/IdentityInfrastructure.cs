@@ -10,7 +10,8 @@ namespace Okul.Modules.Identity.Infrastructure;
 
 public static class IdentityInfrastructure
 {
-    public static IServiceCollection AddIdentityInfrastructure(this IServiceCollection services, string connectionString)
+    public static IServiceCollection AddIdentityInfrastructure(
+        this IServiceCollection services, string connectionString, TwoFactorKey twoFactorKey)
     {
         services.AddDbContext<IdentityDbContext>(options => options.UseNpgsql(connectionString, ConfigureNpgsql));
         services.AddDbContext<LoginThrottleDbContext>(options => options.UseNpgsql(connectionString, ConfigureThrottleNpgsql));
@@ -19,6 +20,11 @@ public static class IdentityInfrastructure
         services.AddScoped<ILoginThrottleStore, LoginThrottleStore>();
         services.AddScoped<ISessionValidator, SessionValidator>();
         services.AddSingleton<IPasswordHasher, StaffPasswordHasher>();
+        services.AddScoped<ILoginChallengeStore, LoginChallengeStore>();
+        services.AddScoped<IRecoveryCodeStore, RecoveryCodeStore>();
+        services.AddSingleton(twoFactorKey);
+        services.AddSingleton<ITwoFactorSecretProtector, TwoFactorSecretProtector>();
+        services.AddSingleton<IRecoveryCodeHasher, RecoveryCodeHasher>();
         return services;
     }
 

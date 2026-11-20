@@ -22,6 +22,10 @@ public sealed class IdentityDbContext : TenantDbContext
 
     public DbSet<Session> Sessions => Set<Session>();
 
+    public DbSet<LoginChallenge> LoginChallenges => Set<LoginChallenge>();
+
+    public DbSet<RecoveryCode> RecoveryCodes => Set<RecoveryCode>();
+
     protected override void ConfigureModel(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
@@ -37,6 +41,12 @@ public sealed class IdentityDbContext : TenantDbContext
             account.PrimitiveCollection(a => a.Roles).HasColumnName("roles").HasField("_roles")
                 .UsePropertyAccessMode(PropertyAccessMode.Field);
             account.Ignore(a => a.CanLogInAsStaff);
+            // Spec 0004: the secret only encrypted (R2); the last step is the concurrency token — one code, one session (R6).
+            account.Property(a => a.TwoFactorSecret).HasColumnName("two_factor_secret").HasMaxLength(256);
+            account.Property(a => a.TwoFactorLastStep).HasColumnName("two_factor_last_step").IsConcurrencyToken();
+            account.Ignore(a => a.TwoFactorEnabled);
+            account.Ignore(a => a.TwoFactorRequired);
+            account.Ignore(a => a.CanDisableTwoFactor);
 
             // One e-mail per kurum; the same e-mail in another kurum is another account (spec 0003).
             account.HasIndex(a => new { a.TenantId, a.Email }).IsUnique().HasDatabaseName("ux_staff_accounts_tenant_email");
@@ -59,6 +69,35 @@ public sealed class IdentityDbContext : TenantDbContext
             session.Property(s => s.PreviousRefreshHash).HasColumnName("previous_refresh_hash").HasMaxLength(64);
             session.Property(s => s.RotatedAt).HasColumnName("rotated_at");
             session.HasIndex(s => new { s.TenantId, s.AccountId }).HasDatabaseName("ix_sessions_tenant_account");
+        });
+
+        modelBuilder.Entity<LoginChallenge>(challenge =>
+        {
+            challenge.ToTable("login_challenges");
+            challenge.HasKey(c => c.Id);
+            challenge.Property(c => c.Id).HasColumnName("id").ValueGeneratedNever();
+            challenge.Property(c => c.TenantId).HasColumnName("tenant_id");
+            challenge.Property(c => c.AccountId).HasColumnName("account_id");
+            challenge.Property(c => c.Purpose).HasColumnName("purpose");
+            challenge.Property(c => c.Client).HasColumnName("client");
+            challenge.Property(c => c.ExpiresAt).HasColumnName("expires_at");
+            challenge.Property(c => c.EndedAt).HasColumnName("ended_at");
+            challenge.Property(c => c.CredentialHash).HasColumnName("credential_hash").IsRequired().HasMaxLength(64);
+            challenge.Property(c => c.PendingProtectedSecret).HasColumnName("pending_secret").HasMaxLength(256);
+            challenge.HasIndex(c => new { c.TenantId, c.AccountId }).HasDatabaseName("ix_login_challenges_tenant_account");
+        });
+
+        modelBuilder.Entity<RecoveryCode>(code =>
+        {
+            code.ToTable("recovery_codes");
+            code.HasKey(c => c.Id);
+            code.Property(c => c.Id).HasColumnName("id").ValueGeneratedNever();
+            code.Property(c => c.TenantId).HasColumnName("tenant_id");
+            code.Property(c => c.AccountId).HasColumnName("account_id");
+            code.Property(c => c.CodeHash).HasColumnName("code_hash").IsRequired().HasMaxLength(64);
+            code.Property(c => c.UsedAt).HasColumnName("used_at");
+            code.Ignore(c => c.IsUnused);
+            code.HasIndex(c => new { c.TenantId, c.AccountId }).HasDatabaseName("ix_recovery_codes_tenant_account");
         });
     }
 }
