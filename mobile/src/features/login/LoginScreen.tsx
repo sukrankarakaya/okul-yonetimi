@@ -15,6 +15,7 @@ export const loginTexts = {
   network: 'Bağlantı kurulamadı, tekrar deneyin.',
   expired: 'Oturumunuzun süresi doldu, tekrar giriş yapın.',
   loading: 'Yükleniyor…',
+  guardian: 'Veli girişi',
 } as const;
 
 type Field = 'code' | 'email' | 'password';
@@ -27,9 +28,11 @@ export interface LoginScreenProps {
   notice?: string;
   initialCode?: string;
   initialEmail?: string;
+  /** Spec 0007: "Veli girişi" opens the veli login (Requirement 12). */
+  onGuardian?: () => void;
 }
 
-export function LoginScreen({ login, onLoggedIn, onStep, notice, initialCode = '', initialEmail = '' }: LoginScreenProps) {
+export function LoginScreen({ login, onLoggedIn, onStep, notice, initialCode = '', initialEmail = '', onGuardian }: LoginScreenProps) {
   const [values, setValues] = useState<Record<Field, string>>({ code: initialCode, email: initialEmail, password: '' });
   const [missing, setMissing] = useState<Field[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -133,6 +136,11 @@ export function LoginScreen({ login, onLoggedIn, onStep, notice, initialCode = '
       >
         {sending ? <ActivityIndicator color="#fff" accessibilityLabel={loginTexts.loading} /> : <Text style={styles.buttonText}>{loginTexts.submit}</Text>}
       </Pressable>
+      {onGuardian ? (
+        <Pressable accessibilityRole="button" accessibilityLabel={loginTexts.guardian} onPress={onGuardian} style={styles.secondary}>
+          <Text style={styles.secondaryText}>{loginTexts.guardian}</Text>
+        </Pressable>
+      ) : null}
     </ScrollView>
   );
 }

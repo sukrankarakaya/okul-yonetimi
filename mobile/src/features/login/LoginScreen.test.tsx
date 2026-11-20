@@ -90,4 +90,13 @@ describe('LoginScreen', () => {
     expect(screen.getByText('Oturumunuzun süresi doldu, tekrar giriş yapın.')).toBeOnTheScreen();
     expect(screen.getByRole('header', { name: 'Giriş' })).toBeOnTheScreen();
   });
+
+  it('spec 0007: "Veli girişi" opens the veli login', async () => {
+    const onGuardian = jest.fn();
+    await render(<LoginScreen login={jest.fn()} onLoggedIn={jest.fn()} onGuardian={onGuardian} />);
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Veli girişi' }));
+
+    expect(onGuardian).toHaveBeenCalledTimes(1);
+  });
 });

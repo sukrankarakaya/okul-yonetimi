@@ -3,6 +3,9 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, SafeAreaView, StyleSheet } from 'react-native';
 import { readLoginHint, secureTokenStore, writeLoginHint, type LoginHint } from './src/auth/secureSession';
+import { ConsentScreen } from './src/features/guardian-login/ConsentScreen';
+import { GuardianCodeScreen } from './src/features/guardian-login/GuardianCodeScreen';
+import { GuardianPhoneScreen } from './src/features/guardian-login/GuardianPhoneScreen';
 import { InstitutionScreen } from './src/features/institution/InstitutionScreen';
 import { codeTexts, type CodeOutcome } from './src/features/login/CodeForm';
 import { LoginScreen, loginTexts } from './src/features/login/LoginScreen';
@@ -32,7 +35,11 @@ type Screen =
   | { kind: 'recovery'; codes: string[]; next: 'institution' | 'security'; notice?: string }
   | { kind: 'security' }
   | { kind: 'institution'; notice?: string }
-  | { kind: 'password' };
+  | { kind: 'password' }
+  // Spec 0007 — veli girişi; the kurum kodu is remembered, the telefon never (G-5).
+  | { kind: 'guardianPhone'; notice?: string; code?: string; phone?: string }
+  | { kind: 'guardianCode'; code: string; phone: string }
+  | { kind: 'consent' };
 
 export interface AppProps {
   client?: OkulClient;
@@ -43,9 +50,15 @@ export default function App({ client: injected, loginHint }: AppProps = {}) {
   const client = useMemo(() => injected ?? createMobileClient(), [injected]);
   const hints = useMemo(() => loginHint ?? { read: () => readLoginHint(), write: (h: LoginHint) => writeLoginHint(h) }, [loginHint]);
   const [screen, setScreen] = useState<Screen>({ kind: 'checking' });
+  const [guardian, setGuardian] = useState(false);
 
   const toLogin = useCallback(
     async (notice?: string) => setScreen({ kind: 'login', notice, hint: await hints.read() }),
+    [hints],
+  );
+
+  const toGuardianLogin = useCallback(
+    async (notice?: string) => setScreen({ kind: 'guardianPhone', notice, code: (await hints.read())?.institutionCode }),
     [hints],
   );
 
@@ -53,8 +66,16 @@ export default function App({ client: injected, loginHint }: AppProps = {}) {
     let active = true;
     void client.hasSession().then(async (has) => {
       if (!active) return;
-      if (has) setScreen({ kind: 'institution' });
-      else await toLogin();
+      if (!has) {
+        await toLogin();
+        return;
+      }
+      // A veli without the current rıza sees KVKK first (spec 0007, AC-4); a staff session is "notGuardian".
+      const consent = await client.getGuardianConsent();
+      if (!active) return;
+      const isGuardian = consent.kind === 'ok';
+      setGuardian(isGuardian);
+      setScreen(isGuardian && !consent.consent.accepted ? { kind: 'consent' } : { kind: 'institution' });
     });
     return () => {
       active = false;
@@ -62,7 +83,12 @@ export default function App({ client: injected, loginHint }: AppProps = {}) {
   }, [client, toLogin]);
 
   const loadInstitution = useCallback(() => client.getMyInstitution(), [client]);
-  const sessionEnded = useCallback((expired: boolean) => void toLogin(expired ? loginTexts.expired : undefined), [toLogin]);
+  const sessionEnded = useCallback(
+    (expired: boolean) => void (guardian ? toGuardianLogin : toLogin)(expired ? loginTexts.expired : undefined),
+    [guardian, toGuardianLogin, toLogin],
+  );
+  const loadConsent = useCallback(() => client.getGuardianConsent(), [client]);
+  const consentEnded = useCallback(() => sessionEnded(true), [sessionEnded]);
   const stepEnded = useCallback(() => void toLogin(codeTexts.stepEnded), [toLogin]);
   const loadStatus = useCallback(() => client.getTwoFactor(), [client]);
   const setupStep = screen.kind === 'setup' ? screen.step : null;
@@ -103,6 +129,41 @@ export default function App({ client: injected, loginHint }: AppProps = {}) {
           notice={screen.notice}
           initialCode={screen.hint?.institutionCode}
           initialEmail={screen.hint?.email}
+          onGuardian={() => void toGuardianLogin()}
+        />
+      ) : null}
+      {screen.kind === 'guardianPhone' ? (
+        <GuardianPhoneScreen
+          request={(code, phone) => client.requestGuardianCode(code, phone)}
+          onSent={(code, phone) => {
+            void hints.read().then((hint) => hints.write({ institutionCode: code, email: hint?.email ?? '' }));
+            setScreen({ kind: 'guardianCode', code, phone });
+          }}
+          notice={screen.notice}
+          initialCode={screen.code}
+          initialPhone={screen.phone}
+        />
+      ) : null}
+      {screen.kind === 'guardianCode' ? (
+        <GuardianCodeScreen
+          verify={(code) => client.verifyGuardianCode(screen.code, screen.phone, code)}
+          resend={() => client.requestGuardianCode(screen.code, screen.phone)}
+          onCancel={() => {
+            void client.cancelGuardianCode(screen.code, screen.phone);
+            setScreen({ kind: 'guardianPhone', code: screen.code, phone: screen.phone });
+          }}
+          onLoggedIn={(consentRequired) => {
+            setGuardian(true);
+            setScreen(consentRequired ? { kind: 'consent' } : { kind: 'institution' });
+          }}
+        />
+      ) : null}
+      {screen.kind === 'consent' ? (
+        <ConsentScreen
+          load={loadConsent}
+          accept={() => client.acceptGuardianConsent()}
+          onAccepted={() => setScreen({ kind: 'institution' })}
+          onSessionEnded={consentEnded}
         />
       ) : null}
       {screen.kind === 'verify' ? (
@@ -166,9 +227,9 @@ export default function App({ client: injected, loginHint }: AppProps = {}) {
           loadInstitution={loadInstitution}
           notice={screen.notice}
           onSessionEnded={sessionEnded}
-          onChangePassword={() => setScreen({ kind: 'password' })}
-          onSecurity={() => setScreen({ kind: 'security' })}
-          onLogout={() => void client.logout().finally(() => void toLogin())}
+          onChangePassword={guardian ? undefined : () => setScreen({ kind: 'password' })}
+          onSecurity={guardian ? undefined : () => setScreen({ kind: 'security' })}
+          onLogout={() => void client.logout().finally(() => void (guardian ? toGuardianLogin() : toLogin()))}
         />
       ) : null}
       <StatusBar style="dark" />
