@@ -93,3 +93,13 @@ step 7). Nothing lands here without that decision; noise is rejected in the tria
 - **B-16** — Mobil Kurulum ekranında 2FA anahtarı satır ortasında kırılıyor (okunurluk; "Kopyala" var) — Source: spec 0004,
   VERIFY round 1 #3 (`mobile/src/features/login/SetupStep.tsx`) — Severity: info — Recommendation: anahtarı 4'lü gruplarla
   ve satır kırılmadan göster — Deferred by: kullanıcı, 2026-11-20, triage
+- **B-17** — Spec 0005 AC-6/AC-7 ("veli çocuklarının derslerini/notlarını/haberlerini görür", "çoklu çocuk + ayrı erişim
+  kontrolü") `[x]` işaretli shipped, ancak kodda öğrenci ve veli–öğrenci bağı yok (`Parent` çocuk taşımıyor); kanıt
+  bu davranışı kapsıyor olamaz — Source: spec 0005 (shipped, immutable), 0006 ANALYZE bulgusu
+  (`backend/src/Modules/Parents/Okul.Modules.Parents.Domain/Parent.cs`) — Severity: medium (süreç: kanıtsız işaretli
+  kriter) — Recommendation: davranış 0006 (çocuk listesi), 0007 (dersler), 0008 (duyurular) ile gelir; notlar ayrı spec;
+  0005 VERIFY tablosunu yeniden okuyup kanıtsız işaretin nasıl geçtiğini süreç dersine yaz — Deferred by: kullanıcı,
+  2026-11-20, 0006 split onayı
+- **B-18** — Çocuk fotoğrafının veliye gösterimi için 0005 KVKK rızasının yeterliliği hukuken teyit edilmedi — Source:
+  spec 0006 self-critique G-3 — Severity: low — Recommendation: KVKK danışmanına sor; ayrı açık rıza gerekirse fotoğrafı
+  rızaya bağla, yedek baş harfler zaten var (0006 AC-3) — Deferred by: kullanıcı, 2026-11-20, G-3 onayı
