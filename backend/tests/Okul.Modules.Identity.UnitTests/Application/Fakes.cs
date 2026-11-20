@@ -92,6 +92,13 @@ internal sealed class FakeSessions(FakeTenantScope scope) : ISessionStore
         return Task.CompletedTask;
     }
 
+    public Task<int> CloseAllAsync(Guid accountId, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var open = All.Where(s => s.AccountId == accountId && s.ClosedAt == null).ToList();
+        open.ForEach(s => s.Close(now));
+        return Task.FromResult(open.Count);
+    }
+
     public Task CloseOthersAsync(Guid accountId, Guid keepSessionId, DateTimeOffset now, CancellationToken cancellationToken)
     {
         foreach (var session in All.Where(s => s.AccountId == accountId && s.Id != keepSessionId))

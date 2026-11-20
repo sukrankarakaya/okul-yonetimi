@@ -111,6 +111,11 @@ internal sealed class SessionStore : ISessionStore
             .Where(s => s.AccountId == accountId && s.Id != keepSessionId && s.ClosedAt == null)
             .ExecuteUpdateAsync(set => set.SetProperty(s => s.ClosedAt, now), cancellationToken);
 
+    public Task<int> CloseAllAsync(Guid accountId, DateTimeOffset now, CancellationToken cancellationToken) =>
+        _db.Sessions
+            .Where(s => s.AccountId == accountId && s.ClosedAt == null)
+            .ExecuteUpdateAsync(set => set.SetProperty(s => s.ClosedAt, now), cancellationToken);
+
     public async Task<bool> CloseAsync(Guid sessionId, DateTimeOffset now, CancellationToken cancellationToken) =>
         await _db.Sessions
             .Where(s => s.Id == sessionId && s.ClosedAt == null)

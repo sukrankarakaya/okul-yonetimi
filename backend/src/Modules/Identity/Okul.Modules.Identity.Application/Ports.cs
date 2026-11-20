@@ -30,6 +30,9 @@ public interface ISessionStore
     /// <summary>Closes every open session of the account except <paramref name="keepSessionId"/> (Requirement 7).</summary>
     Task CloseOthersAsync(Guid accountId, Guid keepSessionId, DateTimeOffset now, CancellationToken cancellationToken);
 
+    /// <summary>Closes every open session of the account (a 2FA reset — spec 0004, Requirement 9); the number closed.</summary>
+    Task<int> CloseAllAsync(Guid accountId, DateTimeOffset now, CancellationToken cancellationToken);
+
     /// <summary>Closes one session in a single UPDATE (if still open). False when there is no such open session.</summary>
     Task<bool> CloseAsync(Guid sessionId, DateTimeOffset now, CancellationToken cancellationToken);
 

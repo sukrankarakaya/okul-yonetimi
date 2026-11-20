@@ -133,6 +133,22 @@ public sealed class TwoFactorLoginServices
             return true;
         }, cancellationToken);
 
+    /// <summary>
+    /// A valid code of the account's secret for a step later than the last accepted one, written with a concurrency check:
+    /// two parallel requests with one code — only one wins (plan 0004, R6). Run inside the account's tenant scope.
+    /// </summary>
+    public async Task<bool> AcceptCodeAsync(StaffAccount account, string? code, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        if (account.TwoFactorSecret is not { } secret
+            || Totp.MatchingStep(Protector.Unprotect(secret), code, now) is not { } matched
+            || !account.TryAcceptStep(matched))
+        {
+            return false;
+        }
+
+        return await Accounts.TrySaveChangesAsync(cancellationToken);
+    }
+
     public static IReadOnlyList<string> NewRecoveryCodes(out IReadOnlyList<string> hashes, IRecoveryCodeHasher hasher)
     {
         var codes = RecoveryCodeFormat.NewSet();
@@ -169,7 +185,7 @@ public sealed class VerifyLoginCommandHandler : IRequestHandler<VerifyLoginComma
         {
             var accepted = request.RecoveryCode is not null
                 ? await UseRecoveryCodeAsync(account, request.RecoveryCode, now, cancellationToken)
-                : await AcceptCodeAsync(account, request.Code, now, cancellationToken);
+                : await _s.AcceptCodeAsync(account, request.Code, now, cancellationToken);
             if (!accepted)
             {
                 return await _s.FailAsync(account, now, cancellationToken);
@@ -185,19 +201,6 @@ public sealed class VerifyLoginCommandHandler : IRequestHandler<VerifyLoginComma
             var session = await SessionOpening.OpenAsync(_s.Sessions, _s.TenantScope, account, challenge.Client, now, cancellationToken);
             return new TwoFactorStepResult(TwoFactorStepStatus.Succeeded, session);
         }
-    }
-
-    /// <summary>The step is written with a concurrency check: two parallel requests with one code — only one wins (R6).</summary>
-    private async Task<bool> AcceptCodeAsync(StaffAccount account, string? code, DateTimeOffset now, CancellationToken cancellationToken)
-    {
-        if (account.TwoFactorSecret is not { } secret
-            || Totp.MatchingStep(_s.Protector.Unprotect(secret), code, now) is not { } matched
-            || !account.TryAcceptStep(matched))
-        {
-            return false;
-        }
-
-        return await _s.Accounts.TrySaveChangesAsync(cancellationToken);
     }
 
     private async Task<bool> UseRecoveryCodeAsync(

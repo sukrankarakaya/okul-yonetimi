@@ -109,6 +109,11 @@ if (args.FirstOrDefault() == CreateAdminCommand.Name)
     return await CreateAdminCommand.RunAsync(app.Services, args, Console.In, Console.Out);
 }
 
+if (args.FirstOrDefault() == ResetTwoFactorCommand.Name)
+{
+    return await ResetTwoFactorCommand.RunAsync(app.Services, args, Console.Out);
+}
+
 app.UseExceptionHandler();
 app.UseOkulSecurityHeaders();
 app.UseCors();

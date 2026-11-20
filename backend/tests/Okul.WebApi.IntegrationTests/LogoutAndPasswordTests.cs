@@ -65,6 +65,29 @@ public sealed class ChangePasswordTests
         _api = api;
     }
 
+    /// <summary>Spec 0004, B-11 / AC-7 — wrong current passwords count towards the login lock; locked, nothing changes.</summary>
+    [Fact]
+    public async Task FiveWrongCurrentPasswords_Lock_EvenTheRightOne()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var account = await _api.CreateAccountAsync(InstitutionSampleData.WithCampusesId);
+        var (client, _) = await _api.LoginMobileAsync(account);
+
+        for (var i = 0; i < 5; i++)
+        {
+            (await client.PostAsJsonAsync(PasswordRoute, new ChangePasswordRequest("yanlis-sifre-123", NewPassword, NewPassword), ct))
+                .StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        }
+
+        var locked = await client.PostAsJsonAsync(PasswordRoute, new ChangePasswordRequest(_api.SamplePassword, NewPassword, NewPassword), ct);
+
+        locked.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
+        (await locked.Content.ReadFromJsonAsync<Microsoft.AspNetCore.Mvc.ProblemDetails>(ct))!.Detail
+            .ShouldBe("Çok fazla başarısız deneme. 15 dakika sonra tekrar deneyin.");
+        (await client.PostAsJsonAsync("/api/v1/auth/login", new LoginRequest(
+            ApiFixture.CodeOf(account), account.Email, _api.SamplePassword, "mobile"), ct)).StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
+    }
+
     [Theory]
     [InlineData("yanlis-sifre-123", NewPassword, NewPassword, "Mevcut şifre hatalı.")]
     [InlineData(null, "kisa-1234", "kisa-1234", "Yeni şifre en az 10 karakter olmalı.")]

@@ -189,7 +189,7 @@ public sealed class HandlerTests
     {
         using (_scope.Begin(session.TenantId))
         {
-            return await new ChangePasswordCommandHandler(_accounts, _sessions, _hasher, _clock)
+            return await new ChangePasswordCommandHandler(_accounts, _sessions, _hasher, _throttles, _clock)
                 .Handle(new ChangePasswordCommand(session.AccountId, session.SessionId, current, next, again), TestContext.Current.CancellationToken);
         }
     }
