@@ -39,7 +39,7 @@
 - **`Auth:TwoFactorKey`** (base64, 32 bayt; `Auth:SigningKey` gibi gizli yapılandırma): 2FA anahtarı AES-GCM ile bu
   anahtarla şifreli, kurtarma kodları bundan türetilen anahtarla HMAC özeti olarak saklanır — veritabanı kopyası tek
   başına ne anahtarı açar ne kodu dener. Üretimde yoksa uygulama açılmaz; **kaybolursa bütün 2FA kurulumları okunamaz**
-  (her hesap `reset-2fa` ile sıfırlanır). Geliştirme/Test'te tanımsızsa her açılışta geçici anahtar.
+  (her hesap `reset-2fa` ile sıfırlanır). Geliştirme/Test'te tanımsızsa her açılışta geçici anahtar — geliştirmede kurulan 2FA yeniden başlatınca açılamaz (doğrulama 500); kalıcı olsun diye `dotnet user-secrets set Auth:TwoFactorKey "$(openssl rand -base64 32)"` (WebApi projesinde).
 - **2FA sıfırlama (operasyon):** `dotnet Okul.WebApi.dll reset-2fa --kurum-kodu <kod> --e-posta <adres>` — 2FA ve
   kurtarma kodlarını siler, hesabın bütün oturumlarını ve ara adımlarını kapatır; yalnızca sonucu ve kapanan oturum
   sayısını yazar. Sunucuya erişim yetkidir; kim, ne zaman çalıştırdı kaydı audit log spec'iyle gelir.

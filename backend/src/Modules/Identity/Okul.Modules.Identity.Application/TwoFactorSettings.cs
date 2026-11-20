@@ -70,7 +70,7 @@ public sealed class TwoFactorSettingsHandlers :
         var challengeId = Guid.CreateVersion7();
         var credential = RefreshCredential.New(account.TenantId, challengeId);
         var challenge = LoginChallenge.Start(
-            challengeId, account.TenantId, account.Id, LoginChallengePurpose.Setup, ClientKind.Web, now, credential.Hash);
+            challengeId, account.TenantId, account.Id, LoginChallengePurpose.Enable, ClientKind.Web, now, credential.Hash);
         var secret = Totp.NewSecret();
         challenge.SetPendingSecret(_s.Protector.Protect(secret));
         await _s.Challenges.AddAsync(challenge, cancellationToken);
@@ -82,8 +82,9 @@ public sealed class TwoFactorSettingsHandlers :
     public async Task<TwoFactorChangeResult> Handle(ConfirmEnableTwoFactorCommand request, CancellationToken cancellationToken)
     {
         var now = _s.Time.GetUtcNow();
-        var found = await _s.FindAsync(request.Step, LoginChallengePurpose.Setup, now, cancellationToken);
-        if (found is not { } step || step.Account.Id != request.AccountId || step.Challenge.PendingProtectedSecret is not { } pending)
+        var found = await _s.FindAsync(request.Step, LoginChallengePurpose.Enable, now, cancellationToken);
+        if (found is not { } step || step.Account.Id != request.AccountId || step.Challenge.PendingProtectedSecret is not { } pending
+            || step.Account.TwoFactorEnabled)
         {
             return new TwoFactorChangeResult(TwoFactorChangeStatus.StepEnded);
         }
@@ -99,13 +100,17 @@ public sealed class TwoFactorSettingsHandlers :
             return await FailAsync(account, now, cancellationToken);
         }
 
+        if (!await _s.Challenges.TryEndAsync(step.Challenge.Id, now, cancellationToken))
+        {
+            return new TwoFactorChangeResult(TwoFactorChangeStatus.StepEnded);
+        }
+
         var codes = TwoFactorLoginServices.NewRecoveryCodes(out var hashes, _s.RecoveryHasher);
         account.EnableTwoFactor(pending, matched);
         await _s.RecoveryCodes.ReplaceAsync(account.TenantId, account.Id, hashes, cancellationToken);
-        var challenge = await _s.Challenges.FindAsync(step.Challenge.Id, cancellationToken);
-        challenge!.End(now);
-        await _s.Accounts.SaveChangesAsync(cancellationToken);
-        return new TwoFactorChangeResult(TwoFactorChangeStatus.Succeeded, codes);
+        return await _s.Accounts.TrySaveChangesAsync(cancellationToken)
+            ? new TwoFactorChangeResult(TwoFactorChangeStatus.Succeeded, codes)
+            : new TwoFactorChangeResult(TwoFactorChangeStatus.StepEnded);
     }
 
     public async Task<TwoFactorChangeResult> Handle(DisableTwoFactorCommand request, CancellationToken cancellationToken)
@@ -137,8 +142,9 @@ public sealed class TwoFactorSettingsHandlers :
         {
             var codes = TwoFactorLoginServices.NewRecoveryCodes(out var hashes, _s.RecoveryHasher);
             await _s.RecoveryCodes.ReplaceAsync(account.TenantId, account.Id, hashes, cancellationToken);
-            await _s.Accounts.SaveChangesAsync(cancellationToken);
-            return new TwoFactorChangeResult(TwoFactorChangeStatus.Succeeded, codes);
+            return await _s.Accounts.TrySaveChangesAsync(cancellationToken) // one transaction (review round 1 L-1)
+                ? new TwoFactorChangeResult(TwoFactorChangeStatus.Succeeded, codes)
+                : new TwoFactorChangeResult(TwoFactorChangeStatus.InvalidCode);
         });
     }
 

@@ -297,6 +297,12 @@ describe('api-client two-step login', () => {
     expect(await c.disableTwoFactor('123456')).toEqual(expected);
   });
 
+  it('enable answers 409 as "already on", not as a connection error (review round 1 I-1)', async () => {
+    const c = client({ 'POST /api/v1/auth/two-factor/enable': [() => json(409, { code: 'two_factor_enabled' })] });
+
+    expect(await c.startEnableTwoFactor()).toEqual({ kind: 'alreadyEnabled' });
+  });
+
   it('reads the Güvenlik status, and reports an ended session', async () => {
     const status = { enabled: true, required: true, canDisable: false, remainingRecoveryCodes: 3 };
     const c = client({

@@ -7,6 +7,12 @@ public enum LoginChallengePurpose
 
     /// <summary>2FA is required but not set up: the setup must be confirmed first (Requirement 2).</summary>
     Setup,
+
+    /// <summary>
+    /// A signed-in Öğretmen turning 2FA on from Güvenlik (Requirement 7). Never accepted by the anonymous login steps —
+    /// a step is used only where it was issued (review round 1 M-1: it reset the login count, B-11 was bypassed).
+    /// </summary>
+    Enable,
 }
 
 /// <summary>
@@ -73,7 +79,7 @@ public sealed class LoginChallenge
     /// <summary>A new setup attempt replaces any earlier pending secret — the QR code always matches the last secret.</summary>
     public void SetPendingSecret(string protectedSecret)
     {
-        if (Purpose != LoginChallengePurpose.Setup)
+        if (Purpose == LoginChallengePurpose.Verify)
         {
             throw new InvalidOperationException("Yalnızca kurulum adımı anahtar taşır.");
         }

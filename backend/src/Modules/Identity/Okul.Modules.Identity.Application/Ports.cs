@@ -73,6 +73,12 @@ public interface ILoginChallengeStore
 
     Task AddAsync(LoginChallenge challenge, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Ends the step in one conditional UPDATE (<c>ended_at IS NULL</c>): true for exactly one caller — two parallel
+    /// requests with one step cannot both open a session (review round 1 M-2, L-1).
+    /// </summary>
+    Task<bool> TryEndAsync(Guid challengeId, DateTimeOffset now, CancellationToken cancellationToken);
+
     /// <summary>Ends every open step of the account (a 2FA reset — Requirement 9).</summary>
     Task EndAllAsync(Guid accountId, DateTimeOffset now, CancellationToken cancellationToken);
 }
@@ -84,7 +90,13 @@ public interface IRecoveryCodeStore
 
     Task<int> CountUnusedAsync(Guid accountId, CancellationToken cancellationToken);
 
-    /// <summary>Removes every code of the account (used or not) and adds the new hashes — old codes stop at once.</summary>
+    /// <summary>Uses the code in one conditional UPDATE (<c>used_at IS NULL</c>): true for exactly one caller (review round 1 M-2).</summary>
+    Task<bool> TryUseAsync(Guid codeId, DateTimeOffset now, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Marks every code of the account (used or not) for removal and adds the new hashes; both are written by the caller's
+    /// SaveChanges — one transaction with the account change (review round 1 L-1). Old codes stop at once.
+    /// </summary>
     Task ReplaceAsync(Guid tenantId, Guid accountId, IEnumerable<string> codeHashes, CancellationToken cancellationToken);
 
     Task DeleteAllAsync(Guid accountId, CancellationToken cancellationToken);

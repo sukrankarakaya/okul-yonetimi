@@ -166,6 +166,13 @@ internal sealed class FakeChallenges(FakeTenantScope scope) : ILoginChallengeSto
         return Task.CompletedTask;
     }
 
+    public Task<bool> TryEndAsync(Guid challengeId, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var challenge = All.SingleOrDefault(c => c.Id == challengeId && c.EndedAt == null);
+        challenge?.End(now);
+        return Task.FromResult(challenge is not null);
+    }
+
     public Task EndAllAsync(Guid accountId, DateTimeOffset now, CancellationToken cancellationToken)
     {
         All.Where(c => c.AccountId == accountId).ToList().ForEach(c => c.End(now));

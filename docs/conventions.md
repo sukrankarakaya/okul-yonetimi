@@ -80,6 +80,7 @@ Sabitlendi: spec 0001 (walking skeleton), 2026-11-17. Kaynak: `global.json`, `ba
 - T-15 `Directory.Packages.props`'a transitif bir paketin `PackageVersion`'ı eklenince onu kullanan her projenin `packages.lock.json`'u `CentralTransitive` olur (ürün projeleri dahil, sürüm aynı kalsa da) — plan dosya listesine bu lock dosyaları da yazılır — from spec 0002 review round 1 (L-4)
 - T-16 xunit v3 `TestContext.Current.CancellationToken` iptalde `finally` temizliğini de iptal eder — test temizliği `CancellationToken.None` ile yapılır, her adım ayrı `try` içinde (biri düşerse diğerleri yine koşar) — from spec 0002 review round 2 (L-1)
 - T-17 Vitest'te `@testing-library/jest-dom/vitest` yan etki import'u matcher'ları bazı dosya sıralarında koşunun `expect`'ine bağlamaz ("Invalid Chai property: toBeInTheDocument") — setup dosyasında `expect.extend(matchers)` ile açıkça bağlanır; yan etki import'u yalnızca tipler için kalır (`web/src/test/setup.ts`) — from spec 0003 fix round 1 (A-3(a)), review round 2 (I-4)
+- T-18 Aynı belirteç biçimini paylaşan adımlar (giriş doğrulama, giriş kurulumu, oturumdan 2FA açma) **amaçla** ayrılır; bir adım yalnızca verildiği uçta kabul edilir — oturumlu Güvenlik adımı anonim giriş kurulumunda kabul edilince giriş kilidi sayacı sıfırlandı ve B-11 atlatıldı — from spec 0004 review round 1 (M-1)
 
 ## Enforced by tooling
 Spec 0001'den beri `scripts/check.conf`'ta:

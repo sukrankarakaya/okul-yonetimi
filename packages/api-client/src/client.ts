@@ -52,6 +52,8 @@ export type TwoFactorStatusResult = { kind: 'ok'; status: TwoFactorStatus } | { 
 
 export type EnableStartResult =
   | { kind: 'ok'; step: string; key: string; qrCode: string }
+  /** 2FA is already on (409) — nothing to set up; Güvenlik shows it (review round 1 I-1). */
+  | { kind: 'alreadyEnabled' }
   | { kind: 'unauthenticated' }
   | { kind: 'network' };
 
@@ -356,6 +358,7 @@ export function createOkulClient(options: OkulClientOptions): OkulClient {
       if ('network' in outcome) return { kind: 'network' };
       if ('ended' in outcome) return { kind: 'unauthenticated' };
       const { data, response } = outcome.result;
+      if (response.status === 409) return { kind: 'alreadyEnabled' };
       return response.ok && data ? { kind: 'ok', step: data.step, key: data.key, qrCode: data.qrCode } : { kind: 'network' };
     },
 

@@ -186,6 +186,38 @@ public sealed class TwoFactorLoginTests
             .ShouldAllBe(a => a.StatusCode == HttpStatusCode.Unauthorized || a.StatusCode == HttpStatusCode.TooManyRequests);
     }
 
+    /// <summary>Review round 1 M-2 — one kurtarma kodu in parallel requests (separate steps) opens one session.</summary>
+    [Fact]
+    public async Task ParallelSameRecoveryCode_OnlyOneSession()
+    {
+        var admin = await _api.CreateAccountAsync(InstitutionSampleData.WithCampusesId, StaffRoles.Administrator);
+        var code = await _api.AddRecoveryCodeAsync(admin);
+        var steps = new List<(HttpClient Client, string Step)>();
+        for (var i = 0; i < 4; i++)
+        {
+            var client = _api.Testing.CreateClient();
+            steps.Add((client, (await StepAsync(client, _api, admin, "verify")).Step));
+        }
+
+        var answers = await Task.WhenAll(steps.Select(s => VerifyAsync(s.Client, s.Step, null, code)));
+
+        answers.Count(a => a.StatusCode == HttpStatusCode.OK).ShouldBe(1);
+    }
+
+    /// <summary>Review round 1 M-2 — one step with two different kurtarma kodları in parallel opens one session.</summary>
+    [Fact]
+    public async Task OneStep_TwoParallelRecoveryCodes_OnlyOneSession()
+    {
+        var admin = await _api.CreateAccountAsync(InstitutionSampleData.WithCampusesId, StaffRoles.Administrator);
+        var client = _api.Testing.CreateClient();
+        var step = (await StepAsync(client, _api, admin, "verify")).Step;
+        var codes = new[] { await _api.AddRecoveryCodeAsync(admin), await _api.AddRecoveryCodeAsync(admin), await _api.AddRecoveryCodeAsync(admin) };
+
+        var answers = await Task.WhenAll(codes.Select(c => VerifyAsync(_api.Testing.CreateClient(), step, null, c)));
+
+        answers.Count(a => a.StatusCode == HttpStatusCode.OK).ShouldBe(1);
+    }
+
     [Fact]
     public async Task RecoveryCode_OpensOnce_AnySpelling()
     {

@@ -52,6 +52,53 @@ public sealed class TwoFactorSettingsTests
         (await PasswordAsync(factory.CreateClient(), _api, teacher)).StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
+    /// <summary>
+    /// Review round 1 M-1 — the Güvenlik "aç" step is refused by the anonymous login setup: it must not reset the login
+    /// count (B-11 would be bypassed: wrong current passwords, enable, confirm at the login, disable, again).
+    /// </summary>
+    [Fact]
+    public async Task EnableStep_IsRefusedAtTheLoginSetup_AndDoesNotResetTheCount()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+        await using var factory = _api.CreateFactory(DevAuthEndpoints.TestingEnvironment, clock);
+        var teacher = await _api.CreateAccountAsync(InstitutionSampleData.WithCampusesId, StaffRoles.Teacher);
+        var (client, _) = await _api.LoginMobileAsync(teacher, factory);
+        for (var i = 0; i < 4; i++)
+        {
+            (await client.PostAsJsonAsync("/api/v1/auth/password", new ChangePasswordRequest("yanlis-sifre-123", "yepyeni-sifre-2026", "yepyeni-sifre-2026"), ct))
+                .StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        }
+
+        var enable = (await (await client.PostAsync(StatusRoute + "/enable", null, ct)).Content.ReadFromJsonAsync<TwoFactorEnableResponse>(ct))!;
+        var code = ApiFixture.CodeFromKey(enable.Key, clock.GetUtcNow());
+        await ShouldAnswerAsync(await ConfirmAsync(factory.CreateClient(), enable.Step, code), HttpStatusCode.Unauthorized, AuthEndpoints.StepEndedMessage);
+        await ShouldAnswerAsync(await factory.CreateClient().PostAsJsonAsync(SetupRoute, new LoginStepRequest(enable.Step), ct),
+            HttpStatusCode.Unauthorized, AuthEndpoints.StepEndedMessage);
+
+        // The count still stands at 4: the fifth wrong current password locks.
+        (await client.PostAsJsonAsync("/api/v1/auth/password", new ChangePasswordRequest("yanlis-sifre-123", "yepyeni-sifre-2026", "yepyeni-sifre-2026"), ct))
+            .StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await client.PostAsJsonAsync("/api/v1/auth/password", new ChangePasswordRequest(_api.SamplePassword, "yepyeni-sifre-2026", "yepyeni-sifre-2026"), ct))
+            .StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
+    }
+
+    /// <summary>Review round 1 M-1 — a login setup step is refused by the signed-in enable confirm too, and an "on" account cannot set up again.</summary>
+    [Fact]
+    public async Task EnableConfirm_RefusesALoginStep_AndAnAccountAlreadyOn()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+        await using var factory = _api.CreateFactory(DevAuthEndpoints.TestingEnvironment, clock);
+        var teacher = await _api.CreateAccountAsync(InstitutionSampleData.WithCampusesId, setUpTwoFactor: true, StaffRoles.Teacher);
+        var client = await SignedInAsync(factory, clock, teacher);
+
+        (await client.PostAsync(StatusRoute + "/enable", null, ct)).StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        await ShouldAnswerAsync(await client.PostAsJsonAsync(StatusRoute + "/enable/confirm",
+            new VerifyLoginRequest((await StepAsync(factory.CreateClient(), _api, teacher, "verify")).Step, _api.CodeAt(clock.GetUtcNow()), null), ct),
+            HttpStatusCode.BadRequest, AuthEndpoints.StepEndedMessage);
+    }
+
     [Fact]
     public async Task WrongCode_DoesNotDisable()
     {

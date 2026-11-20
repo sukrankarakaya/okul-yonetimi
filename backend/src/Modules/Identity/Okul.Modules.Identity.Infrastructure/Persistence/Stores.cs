@@ -55,6 +55,11 @@ internal sealed class LoginChallengeStore : ILoginChallengeStore
     public async Task AddAsync(LoginChallenge challenge, CancellationToken cancellationToken) =>
         await _db.LoginChallenges.AddAsync(challenge, cancellationToken);
 
+    public async Task<bool> TryEndAsync(Guid challengeId, DateTimeOffset now, CancellationToken cancellationToken) =>
+        await _db.LoginChallenges
+            .Where(c => c.Id == challengeId && c.EndedAt == null)
+            .ExecuteUpdateAsync(set => set.SetProperty(c => c.EndedAt, now), cancellationToken) == 1;
+
     public Task EndAllAsync(Guid accountId, DateTimeOffset now, CancellationToken cancellationToken) =>
         _db.LoginChallenges
             .Where(c => c.AccountId == accountId && c.EndedAt == null)
@@ -76,10 +81,15 @@ internal sealed class RecoveryCodeStore : IRecoveryCodeStore
     public Task<int> CountUnusedAsync(Guid accountId, CancellationToken cancellationToken) =>
         _db.RecoveryCodes.CountAsync(c => c.AccountId == accountId && c.UsedAt == null, cancellationToken);
 
-    /// <summary>The delete runs now; the new codes are written with the caller's SaveChanges (one unit with the account).</summary>
+    public async Task<bool> TryUseAsync(Guid codeId, DateTimeOffset now, CancellationToken cancellationToken) =>
+        await _db.RecoveryCodes
+            .Where(c => c.Id == codeId && c.UsedAt == null)
+            .ExecuteUpdateAsync(set => set.SetProperty(c => c.UsedAt, now), cancellationToken) == 1;
+
+    /// <summary>Tracked: removal and insert go out with the caller's SaveChanges — one transaction with the account.</summary>
     public async Task ReplaceAsync(Guid tenantId, Guid accountId, IEnumerable<string> codeHashes, CancellationToken cancellationToken)
     {
-        await DeleteAllAsync(accountId, cancellationToken);
+        _db.RecoveryCodes.RemoveRange(await _db.RecoveryCodes.Where(c => c.AccountId == accountId).ToListAsync(cancellationToken));
         foreach (var hash in codeHashes)
         {
             await _db.RecoveryCodes.AddAsync(RecoveryCode.Create(Guid.CreateVersion7(), tenantId, accountId, hash), cancellationToken);

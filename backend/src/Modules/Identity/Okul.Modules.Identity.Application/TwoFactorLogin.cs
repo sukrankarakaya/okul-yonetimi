@@ -196,8 +196,12 @@ public sealed class VerifyLoginCommandHandler : IRequestHandler<VerifyLoginComma
                 return new TwoFactorStepResult(TwoFactorStepStatus.Locked);
             }
 
-            challenge.End(now);
-            await _s.Accounts.SaveChangesAsync(cancellationToken);
+            // One step, one session: a parallel request on the same step that also got here loses (review round 1 M-2).
+            if (!await _s.Challenges.TryEndAsync(challenge.Id, now, cancellationToken))
+            {
+                return new TwoFactorStepResult(TwoFactorStepStatus.StepEnded);
+            }
+
             var session = await SessionOpening.OpenAsync(_s.Sessions, _s.TenantScope, account, challenge.Client, now, cancellationToken);
             return new TwoFactorStepResult(TwoFactorStepStatus.Succeeded, session);
         }
@@ -214,7 +218,8 @@ public sealed class VerifyLoginCommandHandler : IRequestHandler<VerifyLoginComma
         var hash = Encoding.ASCII.GetBytes(_s.RecoveryHasher.Hash(normalized));
         var codes = await _s.RecoveryCodes.ListUnusedAsync(account.Id, cancellationToken);
         var match = codes.FirstOrDefault(c => CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(c.CodeHash), hash));
-        return match is not null && match.TryUse(now);
+        // A conditional UPDATE, not the tracked entity: of two parallel requests with one code only one uses it (M-2).
+        return match is not null && await _s.RecoveryCodes.TryUseAsync(match.Id, now, cancellationToken);
     }
 }
 
@@ -266,6 +271,11 @@ public sealed class ConfirmSetupCommandHandler : IRequestHandler<ConfirmSetupCom
         }
 
         var (challenge, account) = step;
+        if (account.TwoFactorEnabled)
+        {
+            return new TwoFactorStepResult(TwoFactorStepStatus.StepEnded); // nothing to set up (review round 1 M-1)
+        }
+
         if (await _s.IsLockedAsync(account, now, cancellationToken))
         {
             return new TwoFactorStepResult(TwoFactorStepStatus.Locked);
@@ -285,10 +295,18 @@ public sealed class ConfirmSetupCommandHandler : IRequestHandler<ConfirmSetupCom
         var codes = TwoFactorLoginServices.NewRecoveryCodes(out var hashes, _s.RecoveryHasher);
         using (_s.TenantScope.Begin(account.TenantId))
         {
+            // Claim the step first: a double confirm gets "step ended", never a second set of codes (review round 1 L-1).
+            if (!await _s.Challenges.TryEndAsync(challenge.Id, now, cancellationToken))
+            {
+                return new TwoFactorStepResult(TwoFactorStepStatus.StepEnded);
+            }
+
             account.EnableTwoFactor(pending, matched);
             await _s.RecoveryCodes.ReplaceAsync(account.TenantId, account.Id, hashes, cancellationToken);
-            challenge.End(now);
-            await _s.Accounts.SaveChangesAsync(cancellationToken);
+            if (!await _s.Accounts.TrySaveChangesAsync(cancellationToken))
+            {
+                return new TwoFactorStepResult(TwoFactorStepStatus.StepEnded);
+            }
         }
 
         var session = await SessionOpening.OpenAsync(_s.Sessions, _s.TenantScope, account, challenge.Client, now, cancellationToken);

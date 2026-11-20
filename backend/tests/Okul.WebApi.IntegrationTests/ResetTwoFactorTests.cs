@@ -26,6 +26,8 @@ public sealed class ResetTwoFactorTests
         var admin = await _api.CreateAccountAsync(InstitutionSampleData.WithCampusesId, StaffRoles.Administrator);
         var (mobile, _) = await _api.LoginMobileAsync(admin);
         var web = await _api.LoginWebAsync(admin);
+        var open = _api.Testing.CreateClient();
+        var pending = await StepAsync(open, _api, admin, "verify"); // a login step open at the reset
         var unused = await _api.AddRecoveryCodeAsync(admin);
         var output = new StringWriter();
 
@@ -34,9 +36,9 @@ public sealed class ResetTwoFactorTests
         output.ToString().Trim().ShouldBe("İki adımlı doğrulama sıfırlandı. Kapanan oturum: 2.");
         (await mobile.GetAsync(MineRoute, ct)).StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
         (await web.GetAsync(MineRoute, ct)).StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        // The open step and the unused kurtarma kodu are gone (review round 1 L-2); the next login sets up again.
+        await ShouldAnswerAsync(await VerifyAsync(open, pending.Step, null, unused), HttpStatusCode.Unauthorized, Auth.AuthEndpoints.StepEndedMessage);
         await StepAsync(_api.Testing.CreateClient(), _api, admin, "setup");
-        await _api.AddRecoveryCodeAsync(admin); // codes cannot reopen a reset account: the step is setup, not verify
-        unused.ShouldNotBeNullOrWhiteSpace();
     }
 
     [Fact]

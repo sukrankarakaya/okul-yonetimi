@@ -73,7 +73,8 @@ export function App({ client: injected }: { client?: OkulClient } = {}) {
     if (result.kind === 'ok') {
       enableStep.current = result.step;
     }
-    return result;
+    // Already on: nothing to set up — back to Güvenlik, which shows "Açık" (review round 1 I-1).
+    return result.kind === 'alreadyEnabled' ? ({ kind: 'stepEnded' } as const) : result;
   }, [client]);
   const toSecurity = useCallback(() => setScreen({ kind: 'security' }), []);
   const enableEnded = useCallback(

@@ -110,6 +110,28 @@ public sealed class TwoFactorSetupTests
         (await ConfirmAsync(client, second.Step, ApiFixture.CodeFromKey(restarted.Key, clock.GetUtcNow()))).StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
+    /// <summary>Review round 1 L-1 — a double confirm: one session and one set of codes, and those codes work.</summary>
+    [Fact]
+    public async Task ParallelConfirm_OneWins_AndItsCodesWork()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+        await using var factory = _api.CreateFactory(DevAuthEndpoints.TestingEnvironment, clock);
+        var admin = await _api.CreateAccountAsync(InstitutionSampleData.WithCampusesId, setUpTwoFactor: false, StaffRoles.Administrator);
+        var client = factory.CreateClient();
+        var step = await StepAsync(client, _api, admin, "setup");
+        var setup = await StartSetupAsync(client, step.Step);
+        var code = ApiFixture.CodeFromKey(setup.Key, clock.GetUtcNow());
+
+        var answers = await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => ConfirmAsync(factory.CreateClient(), step.Step, code)));
+
+        answers.ShouldNotContain(a => a.StatusCode == HttpStatusCode.InternalServerError);
+        var won = answers.Where(a => a.StatusCode == HttpStatusCode.OK).ShouldHaveSingleItem();
+        var codes = (await won.Content.ReadFromJsonAsync<SetupCompletedResponse>(ct))!.RecoveryCodes;
+        var next = await StepAsync(client, _api, admin, "verify");
+        (await VerifyAsync(client, next.Step, null, codes[9])).StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
     [Fact]
     public async Task RecoveryCodes_ShownOnce_NeverAgain()
     {
