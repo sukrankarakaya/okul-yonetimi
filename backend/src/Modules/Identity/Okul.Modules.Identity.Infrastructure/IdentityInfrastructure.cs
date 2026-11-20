@@ -22,6 +22,7 @@ public static class IdentityInfrastructure
         services.AddSingleton<IPasswordHasher, StaffPasswordHasher>();
         services.AddScoped<ILoginChallengeStore, LoginChallengeStore>();
         services.AddScoped<IRecoveryCodeStore, RecoveryCodeStore>();
+        services.AddScoped<TwoFactorLoginServices>();
         services.AddSingleton(twoFactorKey);
         services.AddSingleton<ITwoFactorSecretProtector, TwoFactorSecretProtector>();
         services.AddSingleton<IRecoveryCodeHasher, RecoveryCodeHasher>();

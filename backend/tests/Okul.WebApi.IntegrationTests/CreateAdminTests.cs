@@ -37,7 +37,16 @@ public sealed class CreateAdminTests
 
         var login = await _api.Testing.CreateClient().PostAsJsonAsync("/api/v1/auth/login",
             new LoginRequest(InstitutionSampleData.WithoutCampusesCode, email, password, "mobile"), ct);
-        login.StatusCode.ShouldBe(HttpStatusCode.OK);
-        (await login.Content.ReadFromJsonAsync<SessionResponse>(ct))!.Roles.ShouldBe(["Administrator"]);
+        // Spec 0004: a new administrator logs in through the mandatory 2FA setup (AC-1, A-1).
+        login.StatusCode.ShouldBe(HttpStatusCode.Accepted);
+        var step = (await login.Content.ReadFromJsonAsync<LoginStepResponse>(ct))!;
+        step.Next.ShouldBe("setup");
+        var client = _api.Testing.CreateClient();
+        var setup = await (await client.PostAsJsonAsync("/api/v1/auth/login/setup", new LoginStepRequest(step.Step), ct))
+            .Content.ReadFromJsonAsync<TwoFactorSetupResponse>(ct);
+        var confirmed = await client.PostAsJsonAsync("/api/v1/auth/login/setup/confirm",
+            new VerifyLoginRequest(step.Step, ApiFixture.CodeFromKey(setup!.Key, DateTimeOffset.UtcNow), null), ct);
+        confirmed.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await confirmed.Content.ReadFromJsonAsync<SetupCompletedResponse>(ct))!.Session.Roles.ShouldBe(["Administrator"]);
     }
 }

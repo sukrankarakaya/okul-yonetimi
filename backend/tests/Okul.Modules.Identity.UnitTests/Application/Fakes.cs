@@ -145,3 +145,23 @@ internal sealed class FakeHasher : IPasswordHasher
         return passwordHash is not null && passwordHash == Hash(password);
     }
 }
+
+internal sealed class FakeChallenges(FakeTenantScope scope) : ILoginChallengeStore
+{
+    public List<LoginChallenge> All { get; } = [];
+
+    public Task<LoginChallenge?> FindAsync(Guid challengeId, CancellationToken cancellationToken) =>
+        Task.FromResult(All.SingleOrDefault(c => scope.Current is { } t && c.TenantId == t && c.Id == challengeId));
+
+    public Task AddAsync(LoginChallenge challenge, CancellationToken cancellationToken)
+    {
+        All.Add(challenge);
+        return Task.CompletedTask;
+    }
+
+    public Task EndAllAsync(Guid accountId, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        All.Where(c => c.AccountId == accountId).ToList().ForEach(c => c.End(now));
+        return Task.CompletedTask;
+    }
+}
